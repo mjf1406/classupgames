@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { Menu } from "lucide-react";
+import { Gamepad2, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -8,10 +8,10 @@ import {
   SheetFooter,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { SignInDialog } from "@/components/SignInDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { APPS } from "@/lib/apps";
+import { isGoogleUser } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { loginSearchDefaults } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
 const navLinkClass =
@@ -47,40 +47,11 @@ function NavLink({
   );
 }
 
-function DesktopNav() {
-  return (
-    <nav className="hidden items-center gap-1 md:flex" aria-label="Main">
-      <NavLink to="/" exact>
-        Home
-      </NavLink>
-      {APPS.map((app) => (
-        <NavLink key={app.slug} to={`/${app.slug}`}>
-          {app.name}
-        </NavLink>
-      ))}
-    </nav>
-  );
-}
-
-function AuthActions({
-  onSignIn,
-  className,
-}: {
-  onSignIn: () => void;
-  className?: string;
-}) {
+function AuthActions({ className }: { className?: string }) {
   const { isLoading, user } = db.useAuth();
 
-  if (isLoading) {
+  if (isLoading || !user || !isGoogleUser(user)) {
     return null;
-  }
-
-  if (!user) {
-    return (
-      <Button variant="outline" size="sm" className={className} onClick={onSignIn}>
-        Sign in
-      </Button>
-    );
   }
 
   return (
@@ -98,11 +69,9 @@ function AuthActions({
 function MobileNav({
   open,
   onOpenChange,
-  onSignIn,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSignIn: () => void;
 }) {
   const close = () => onOpenChange(false);
   const { isLoading, user } = db.useAuth();
@@ -122,33 +91,11 @@ function MobileNav({
       <SheetContent side="right" className="w-full max-w-xs">
         <nav className="flex flex-col gap-1 px-4 pt-4" aria-label="Main">
           <NavLink to="/" exact onNavigate={close} className="w-full">
-            Home
+            My decks
           </NavLink>
-          {APPS.map((app) => (
-            <NavLink
-              key={app.slug}
-              to={`/${app.slug}`}
-              onNavigate={close}
-              className="w-full"
-            >
-              {app.name}
-            </NavLink>
-          ))}
         </nav>
         <SheetFooter className="border-t border-border">
-          {!isLoading && !user ? (
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => {
-                close();
-                onSignIn();
-              }}
-            >
-              Sign in
-            </Button>
-          ) : null}
-          {!isLoading && user ? (
+          {!isLoading && user && isGoogleUser(user) ? (
             <>
               <p className="truncate text-xs text-muted-foreground">
                 {user.email}
@@ -164,7 +111,13 @@ function MobileNav({
                 Sign out
               </Button>
             </>
-          ) : null}
+          ) : (
+            <Button asChild variant="outline" className="w-full">
+              <Link to="/login" search={loginSearchDefaults} onClick={close}>
+                Sign in
+              </Link>
+            </Button>
+          )}
         </SheetFooter>
       </SheetContent>
     </Sheet>
@@ -173,32 +126,29 @@ function MobileNav({
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [signInOpen, setSignInOpen] = useState(false);
 
   return (
-    <>
-      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
-        <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4 sm:px-6">
-          <div className="flex flex-1 items-center justify-end gap-3 md:justify-between">
-            <DesktopNav />
+    <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
+      <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4 sm:px-6">
+        <Link to="/" className="flex items-center gap-2 font-semibold">
+          <Gamepad2 className="size-5 text-primary" />
+          <span className="hidden sm:inline">Squad Games</span>
+        </Link>
 
-            <div className="flex items-center gap-2">
-              <AuthActions
-                onSignIn={() => setSignInOpen(true)}
-                className="hidden md:flex"
-              />
-              <ThemeToggle />
-              <MobileNav
-                open={mobileOpen}
-                onOpenChange={setMobileOpen}
-                onSignIn={() => setSignInOpen(true)}
-              />
-            </div>
+        <div className="flex flex-1 items-center justify-end gap-3 md:justify-between">
+          <nav className="hidden items-center gap-1 md:flex" aria-label="Main">
+            <NavLink to="/" exact>
+              My decks
+            </NavLink>
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <AuthActions className="hidden md:flex" />
+            <ThemeToggle />
+            <MobileNav open={mobileOpen} onOpenChange={setMobileOpen} />
           </div>
         </div>
-      </header>
-
-      <SignInDialog open={signInOpen} onOpenChange={setSignInOpen} />
-    </>
+      </div>
+    </header>
   );
 }

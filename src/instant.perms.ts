@@ -1,24 +1,54 @@
 // Docs: https://www.instantdb.com/docs/permissions
 
 import type { InstantRules } from "@instantdb/react";
-import { ALLOWED_EMAIL } from "./lib/auth";
 
 const rules = {
   $users: {
-    bind: { isAllowedEmail: `data.email == '${ALLOWED_EMAIL}'` },
     allow: {
-      create: "isAllowedEmail",
+      create: "true",
       view: "auth.id == data.id",
       update: "auth.id == data.id",
     },
   },
-  todos: {
-    bind: { isAllowedUser: `auth.email == '${ALLOWED_EMAIL}'` },
+  decks: {
     allow: {
-      view: "isAllowedUser",
-      create: "isAllowedUser",
-      update: "isAllowedUser",
-      delete: "isAllowedUser",
+      view: "true",
+      create: "auth.id != null",
+      update: "auth.id in data.ref('owner.id')",
+      delete: "auth.id in data.ref('owner.id')",
+    },
+  },
+  questions: {
+    allow: {
+      view: "true",
+      create: "auth.id in data.ref('deck.owner.id')",
+      update: "auth.id in data.ref('deck.owner.id')",
+      delete: "auth.id in data.ref('deck.owner.id')",
+    },
+  },
+  games: {
+    allow: {
+      view: "true",
+      create: "auth.id != null",
+      update: "auth.id in data.ref('host.id')",
+      delete: "auth.id in data.ref('host.id')",
+    },
+  },
+  players: {
+    allow: {
+      view: "true",
+      create: "auth.id in data.ref('user.id')",
+      update: "auth.id in data.ref('user.id')",
+      delete:
+        "auth.id in data.ref('user.id') || auth.id in data.ref('game.host.id')",
+    },
+  },
+  answers: {
+    allow: {
+      view: "true",
+      create: "auth.id in data.ref('player.user.id')",
+      update: "false",
+      delete: "false",
     },
   },
 } satisfies InstantRules;

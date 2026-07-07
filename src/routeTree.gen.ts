@@ -9,153 +9,230 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SolsimRouteImport } from './routes/solsim'
-import { Route as ReciparooRouteImport } from './routes/reciparoo'
-import { Route as ImagarooRouteImport } from './routes/imagaroo'
-import { Route as DidjyahRouteImport } from './routes/didjyah'
-import { Route as ClassclarusRouteImport } from './routes/classclarus'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as JoinRouteImport } from './routes/join'
+import { Route as HostRouteImport } from './routes/_host'
+import { Route as GameRouteImport } from './routes/_game'
+import { Route as HostIndexRouteImport } from './routes/_host.index'
+import { Route as HostDDeckIdRouteImport } from './routes/_host.d.$deckId'
+import { Route as GameGCodeRouteImport } from './routes/_game.g.$code'
+import { Route as GameGCodeIndexRouteImport } from './routes/_game.g.$code.index'
+import { Route as GameGCodePlayRouteImport } from './routes/_game.g.$code.play'
 
-const SolsimRoute = SolsimRouteImport.update({
-  id: '/solsim',
-  path: '/solsim',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ReciparooRoute = ReciparooRouteImport.update({
-  id: '/reciparoo',
-  path: '/reciparoo',
+const JoinRoute = JoinRouteImport.update({
+  id: '/join',
+  path: '/join',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ImagarooRoute = ImagarooRouteImport.update({
-  id: '/imagaroo',
-  path: '/imagaroo',
+const HostRoute = HostRouteImport.update({
+  id: '/_host',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DidjyahRoute = DidjyahRouteImport.update({
-  id: '/didjyah',
-  path: '/didjyah',
+const GameRoute = GameRouteImport.update({
+  id: '/_game',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ClassclarusRoute = ClassclarusRouteImport.update({
-  id: '/classclarus',
-  path: '/classclarus',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const IndexRoute = IndexRouteImport.update({
+const HostIndexRoute = HostIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => HostRoute,
+} as any)
+const HostDDeckIdRoute = HostDDeckIdRouteImport.update({
+  id: '/d/$deckId',
+  path: '/d/$deckId',
+  getParentRoute: () => HostRoute,
+} as any)
+const GameGCodeRoute = GameGCodeRouteImport.update({
+  id: '/g/$code',
+  path: '/g/$code',
+  getParentRoute: () => GameRoute,
+} as any)
+const GameGCodeIndexRoute = GameGCodeIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => GameGCodeRoute,
+} as any)
+const GameGCodePlayRoute = GameGCodePlayRouteImport.update({
+  id: '/play',
+  path: '/play',
+  getParentRoute: () => GameGCodeRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/classclarus': typeof ClassclarusRoute
-  '/didjyah': typeof DidjyahRoute
-  '/imagaroo': typeof ImagarooRoute
-  '/reciparoo': typeof ReciparooRoute
-  '/solsim': typeof SolsimRoute
+  '/': typeof HostIndexRoute
+  '/join': typeof JoinRoute
+  '/login': typeof LoginRoute
+  '/g/$code': typeof GameGCodeRouteWithChildren
+  '/d/$deckId': typeof HostDDeckIdRoute
+  '/g/$code/play': typeof GameGCodePlayRoute
+  '/g/$code/': typeof GameGCodeIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/classclarus': typeof ClassclarusRoute
-  '/didjyah': typeof DidjyahRoute
-  '/imagaroo': typeof ImagarooRoute
-  '/reciparoo': typeof ReciparooRoute
-  '/solsim': typeof SolsimRoute
+  '/': typeof HostIndexRoute
+  '/join': typeof JoinRoute
+  '/login': typeof LoginRoute
+  '/d/$deckId': typeof HostDDeckIdRoute
+  '/g/$code/play': typeof GameGCodePlayRoute
+  '/g/$code': typeof GameGCodeIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/classclarus': typeof ClassclarusRoute
-  '/didjyah': typeof DidjyahRoute
-  '/imagaroo': typeof ImagarooRoute
-  '/reciparoo': typeof ReciparooRoute
-  '/solsim': typeof SolsimRoute
+  '/_game': typeof GameRouteWithChildren
+  '/_host': typeof HostRouteWithChildren
+  '/join': typeof JoinRoute
+  '/login': typeof LoginRoute
+  '/_host/': typeof HostIndexRoute
+  '/_game/g/$code': typeof GameGCodeRouteWithChildren
+  '/_host/d/$deckId': typeof HostDDeckIdRoute
+  '/_game/g/$code/play': typeof GameGCodePlayRoute
+  '/_game/g/$code/': typeof GameGCodeIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/classclarus'
-    | '/didjyah'
-    | '/imagaroo'
-    | '/reciparoo'
-    | '/solsim'
+    | '/join'
+    | '/login'
+    | '/g/$code'
+    | '/d/$deckId'
+    | '/g/$code/play'
+    | '/g/$code/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/classclarus' | '/didjyah' | '/imagaroo' | '/reciparoo' | '/solsim'
+  to: '/' | '/join' | '/login' | '/d/$deckId' | '/g/$code/play' | '/g/$code'
   id:
     | '__root__'
-    | '/'
-    | '/classclarus'
-    | '/didjyah'
-    | '/imagaroo'
-    | '/reciparoo'
-    | '/solsim'
+    | '/_game'
+    | '/_host'
+    | '/join'
+    | '/login'
+    | '/_host/'
+    | '/_game/g/$code'
+    | '/_host/d/$deckId'
+    | '/_game/g/$code/play'
+    | '/_game/g/$code/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  ClassclarusRoute: typeof ClassclarusRoute
-  DidjyahRoute: typeof DidjyahRoute
-  ImagarooRoute: typeof ImagarooRoute
-  ReciparooRoute: typeof ReciparooRoute
-  SolsimRoute: typeof SolsimRoute
+  GameRoute: typeof GameRouteWithChildren
+  HostRoute: typeof HostRouteWithChildren
+  JoinRoute: typeof JoinRoute
+  LoginRoute: typeof LoginRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/solsim': {
-      id: '/solsim'
-      path: '/solsim'
-      fullPath: '/solsim'
-      preLoaderRoute: typeof SolsimRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/reciparoo': {
-      id: '/reciparoo'
-      path: '/reciparoo'
-      fullPath: '/reciparoo'
-      preLoaderRoute: typeof ReciparooRouteImport
+    '/join': {
+      id: '/join'
+      path: '/join'
+      fullPath: '/join'
+      preLoaderRoute: typeof JoinRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/imagaroo': {
-      id: '/imagaroo'
-      path: '/imagaroo'
-      fullPath: '/imagaroo'
-      preLoaderRoute: typeof ImagarooRouteImport
+    '/_host': {
+      id: '/_host'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof HostRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/didjyah': {
-      id: '/didjyah'
-      path: '/didjyah'
-      fullPath: '/didjyah'
-      preLoaderRoute: typeof DidjyahRouteImport
+    '/_game': {
+      id: '/_game'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof GameRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/classclarus': {
-      id: '/classclarus'
-      path: '/classclarus'
-      fullPath: '/classclarus'
-      preLoaderRoute: typeof ClassclarusRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/': {
-      id: '/'
+    '/_host/': {
+      id: '/_host/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof HostIndexRouteImport
+      parentRoute: typeof HostRoute
+    }
+    '/_host/d/$deckId': {
+      id: '/_host/d/$deckId'
+      path: '/d/$deckId'
+      fullPath: '/d/$deckId'
+      preLoaderRoute: typeof HostDDeckIdRouteImport
+      parentRoute: typeof HostRoute
+    }
+    '/_game/g/$code': {
+      id: '/_game/g/$code'
+      path: '/g/$code'
+      fullPath: '/g/$code'
+      preLoaderRoute: typeof GameGCodeRouteImport
+      parentRoute: typeof GameRoute
+    }
+    '/_game/g/$code/': {
+      id: '/_game/g/$code/'
+      path: '/'
+      fullPath: '/g/$code/'
+      preLoaderRoute: typeof GameGCodeIndexRouteImport
+      parentRoute: typeof GameGCodeRoute
+    }
+    '/_game/g/$code/play': {
+      id: '/_game/g/$code/play'
+      path: '/play'
+      fullPath: '/g/$code/play'
+      preLoaderRoute: typeof GameGCodePlayRouteImport
+      parentRoute: typeof GameGCodeRoute
     }
   }
 }
 
+interface GameGCodeRouteChildren {
+  GameGCodePlayRoute: typeof GameGCodePlayRoute
+  GameGCodeIndexRoute: typeof GameGCodeIndexRoute
+}
+
+const GameGCodeRouteChildren: GameGCodeRouteChildren = {
+  GameGCodePlayRoute: GameGCodePlayRoute,
+  GameGCodeIndexRoute: GameGCodeIndexRoute,
+}
+
+const GameGCodeRouteWithChildren = GameGCodeRoute._addFileChildren(
+  GameGCodeRouteChildren,
+)
+
+interface GameRouteChildren {
+  GameGCodeRoute: typeof GameGCodeRouteWithChildren
+}
+
+const GameRouteChildren: GameRouteChildren = {
+  GameGCodeRoute: GameGCodeRouteWithChildren,
+}
+
+const GameRouteWithChildren = GameRoute._addFileChildren(GameRouteChildren)
+
+interface HostRouteChildren {
+  HostIndexRoute: typeof HostIndexRoute
+  HostDDeckIdRoute: typeof HostDDeckIdRoute
+}
+
+const HostRouteChildren: HostRouteChildren = {
+  HostIndexRoute: HostIndexRoute,
+  HostDDeckIdRoute: HostDDeckIdRoute,
+}
+
+const HostRouteWithChildren = HostRoute._addFileChildren(HostRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  ClassclarusRoute: ClassclarusRoute,
-  DidjyahRoute: DidjyahRoute,
-  ImagarooRoute: ImagarooRoute,
-  ReciparooRoute: ReciparooRoute,
-  SolsimRoute: SolsimRoute,
+  GameRoute: GameRouteWithChildren,
+  HostRoute: HostRouteWithChildren,
+  JoinRoute: JoinRoute,
+  LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
