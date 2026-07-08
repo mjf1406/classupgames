@@ -198,12 +198,14 @@ export function GameLobbyScreen({ code, playerId }: GameLobbyScreenProps) {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <GameVisual
-              progress={game.progress}
-              lives={game.lives}
-              maxLives={STARTING_LIVES}
-              resourceLabel={gameMeta?.resource ?? "Resource"}
-            />
+            {isHost ? (
+              <GameVisual
+                progress={game.progress}
+                lives={game.lives}
+                maxLives={STARTING_LIVES}
+                resourceLabel={gameMeta?.resource ?? "Resource"}
+              />
+            ) : null}
             {isHost ? (
               <>
                 <Button onClick={() => setRematchOpen(true)}>Play again</Button>

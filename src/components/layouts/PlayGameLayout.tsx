@@ -266,13 +266,15 @@ export function PlayGameLayout({
                   {game.lives} / {STARTING_LIVES}
                 </p>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Progress</p>
-                <Progress value={game.progress} className="mt-1 h-2" />
-                <p className="mt-1 text-sm font-medium">
-                  {Math.round(game.progress)}%
-                </p>
-              </div>
+              {isHost ? (
+                <div>
+                  <p className="text-xs text-muted-foreground">Progress</p>
+                  <Progress value={game.progress} className="mt-1 h-2" />
+                  <p className="mt-1 text-sm font-medium">
+                    {Math.round(game.progress)}%
+                  </p>
+                </div>
+              ) : null}
             </div>
             {showLeaveButton ? (
               <LeaveGameButton
@@ -352,15 +354,17 @@ export function PlayGameLayout({
         <SidebarInset className="flex min-h-svh">
           <div className="flex flex-1 min-w-0">{children}</div>
 
-          <aside className="hidden w-72 shrink-0 border-l bg-card xl:block">
-            <div className="sticky top-0 p-4">
-              <p className="mb-4 flex items-center gap-2 text-sm font-semibold">
-                <Users className="size-4" />
-                Squad
-              </p>
-              {squadPanel}
-            </div>
-          </aside>
+          {isHost ? (
+            <aside className="hidden w-72 shrink-0 border-l bg-card xl:block">
+              <div className="sticky top-0 p-4">
+                <p className="mb-4 flex items-center gap-2 text-sm font-semibold">
+                  <Users className="size-4" />
+                  Squad
+                </p>
+                {squadPanel}
+              </div>
+            </aside>
+          ) : null}
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>

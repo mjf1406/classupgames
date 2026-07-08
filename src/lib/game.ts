@@ -1,7 +1,7 @@
 /** @format */
 
 import type { LucideIcon } from "lucide-react";
-import { Circle, Diamond, Square, Triangle } from "lucide-react";
+import { Circle, Diamond, Hexagon, Heart, Octagon, Square, Star, Triangle } from "lucide-react";
 import type { QuestionSnapshot } from "@/lib/types";
 
 export const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -40,6 +40,30 @@ export const ANSWER_OPTIONS: {
         hoverColor: "hover:bg-emerald-600",
         shape: Diamond,
         label: "Green diamond",
+    },
+    {
+        color: "bg-purple-500",
+        hoverColor: "hover:bg-purple-600",
+        shape: Hexagon,
+        label: "Purple hexagon",
+    },
+    {
+        color: "bg-pink-500",
+        hoverColor: "hover:bg-pink-600",
+        shape: Octagon,
+        label: "Pink octagon",
+    },
+    {
+        color: "bg-cyan-500",
+        hoverColor: "hover:bg-cyan-600",
+        shape: Star,
+        label: "Cyan star",
+    },
+    {
+        color: "bg-lime-500",
+        hoverColor: "hover:bg-lime-600",
+        shape: Heart,
+        label: "Lime heart",
     },
 ];
 

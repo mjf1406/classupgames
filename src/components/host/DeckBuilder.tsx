@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { db } from "@/lib/db";
 
-const EMPTY_OPTIONS = ["", "", "", ""];
+const EMPTY_OPTIONS = Array(8).fill("");
 
 function DeckDetailsForm({
   deck,
@@ -86,6 +86,13 @@ export function DeckBuilder() {
   const [draftCorrect, setDraftCorrect] = useState(0);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  const trimmedDraftOptions = draftOptions.map((option) => option.trim());
+  const nonEmptyDraftOptionsCount = trimmedDraftOptions.filter(Boolean).length;
+  const canSaveQuestion =
+    Boolean(draftText.trim()) &&
+    nonEmptyDraftOptionsCount >= 2 &&
+    Boolean(trimmedDraftOptions[draftCorrect]);
+
   const resetDraft = () => {
     setDraftText("");
     setDraftOptions([...EMPTY_OPTIONS]);
@@ -95,15 +102,28 @@ export function DeckBuilder() {
 
   const handleSaveQuestion = async () => {
     if (!deck || !draftText.trim()) return;
-    const options = draftOptions.map((option) => option.trim());
-    if (options.some((option) => !option)) return;
+
+    const trimmedOptions = draftOptions.map((option) => option.trim());
+    const nonEmptyOptions = trimmedOptions.filter((option) => Boolean(option));
+    if (nonEmptyOptions.length < 2) return;
+
+    // `draftCorrect` is the index in the 0..7 option fields.
+    // `correctIndex` is the index in the compacted non-empty `options` array.
+    let correctIndex = -1;
+    let nonEmptyCount = 0;
+    for (let i = 0; i < trimmedOptions.length; i++) {
+      if (!trimmedOptions[i]) continue;
+      if (i === draftCorrect) correctIndex = nonEmptyCount;
+      nonEmptyCount++;
+    }
+    if (correctIndex < 0) return;
 
     if (editingId) {
       await db.transact(
         db.tx.questions[editingId].update({
           text: draftText.trim(),
-          options,
-          correctIndex: draftCorrect,
+          options: nonEmptyOptions,
+          correctIndex,
         }),
       );
     } else {
@@ -112,8 +132,8 @@ export function DeckBuilder() {
         db.tx.questions[questionId]
           .update({
             text: draftText.trim(),
-            options,
-            correctIndex: draftCorrect,
+            options: nonEmptyOptions,
+            correctIndex,
             order: questions.length,
           })
           .link({ deck: deck.id }),
@@ -128,12 +148,18 @@ export function DeckBuilder() {
     if (!question) return;
     setEditingId(questionId);
     setDraftText(question.text);
-    setDraftOptions(
-      Array.isArray(question.options)
-        ? [...(question.options as string[])]
-        : [...EMPTY_OPTIONS],
+
+    const existingOptions = Array.isArray(question.options)
+      ? (question.options as string[])
+      : [];
+    const nextOptions = [...existingOptions, ...EMPTY_OPTIONS].slice(0, 8);
+    setDraftOptions(nextOptions);
+
+    setDraftCorrect(
+      question.correctIndex >= 0 && question.correctIndex < existingOptions.length
+        ? question.correctIndex
+        : 0,
     );
-    setDraftCorrect(question.correctIndex);
   };
 
   const handleDelete = async (questionId: string) => {
@@ -220,7 +246,8 @@ export function DeckBuilder() {
             {editingId ? "Edit question" : "Add question"}
           </CardTitle>
           <CardDescription>
-            Each question needs four answer options. Mark one as correct.
+            Each question supports up to 8 answer options (at least 2). Mark
+            one of the filled options as correct.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -234,34 +261,49 @@ export function DeckBuilder() {
             />
           </div>
 
-          {draftOptions.map((option, index) => (
-            <div key={index} className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor={`option-${index}`}>Option {index + 1}</Label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    name="correct"
-                    checked={draftCorrect === index}
-                    onChange={() => setDraftCorrect(index)}
-                  />
-                  Correct
-                </label>
+          {draftOptions.map((option, index) => {
+            const isOptionFilled = Boolean(option.trim());
+
+            return (
+              <div key={index} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor={`option-${index}`}>Option {index + 1}</Label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="correct"
+                      checked={draftCorrect === index}
+                      disabled={!isOptionFilled}
+                      onChange={() => setDraftCorrect(index)}
+                    />
+                    Correct
+                  </label>
+                </div>
+                <Input
+                  id={`option-${index}`}
+                  value={option}
+                  onChange={(event) => {
+                    const next = [...draftOptions];
+                    next[index] = event.target.value;
+
+                    // If the currently-selected correct option was cleared,
+                    // fall back to the first filled option.
+                    if (index === draftCorrect && !event.target.value.trim()) {
+                      const firstFilledIndex = next.findIndex((v) =>
+                        Boolean(v.trim()),
+                      );
+                      setDraftCorrect(firstFilledIndex >= 0 ? firstFilledIndex : 0);
+                    }
+
+                    setDraftOptions(next);
+                  }}
+                />
               </div>
-              <Input
-                id={`option-${index}`}
-                value={option}
-                onChange={(event) => {
-                  const next = [...draftOptions];
-                  next[index] = event.target.value;
-                  setDraftOptions(next);
-                }}
-              />
-            </div>
-          ))}
+            );
+          })}
 
           <div className="flex gap-2">
-            <Button onClick={() => void handleSaveQuestion()}>
+            <Button onClick={() => void handleSaveQuestion()} disabled={!canSaveQuestion}>
               {editingId ? "Update question" : "Add question"}
             </Button>
             {editingId ? (

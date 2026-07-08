@@ -1,20 +1,12 @@
 import { id } from "@instantdb/react";
-import { RobotGame, SubmarineGame } from "@/components/game/GameVisuals";
 import {
   AnswerOption,
   AnswerOptionGrid,
   AnswerStatusFooter,
 } from "@/components/game/AnswerOption";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useQuestionTimer } from "@/hooks/useQuestionTimer";
 import { db } from "@/lib/db";
-import { STARTING_LIVES } from "@/lib/game";
 import type {
   AnswerRecord,
   GameRecord,
@@ -35,7 +27,6 @@ export function PlayerPlayScreen({
   currentQuestion,
   myAnswer,
   revealing,
-  gameMeta,
   onAnswer,
 }: PlayerPlayScreenProps) {
   const timeRemaining = useQuestionTimer(
@@ -44,56 +35,54 @@ export function PlayerPlayScreen({
     game.status === "playing",
   );
 
-  const GameVisual = game.gameType === "robot" ? RobotGame : SubmarineGame;
+  const options = (currentQuestion?.options ?? []).slice(0, 8);
+  const optionCount = options.length;
 
   return (
-    <div className="space-y-6 p-6">
-      <GameVisual
-        progress={game.progress}
-        lives={game.lives}
-        maxLives={STARTING_LIVES}
-        resourceLabel={gameMeta?.resource ?? "Resource"}
-      />
+    <div className="flex min-h-0 h-full flex-col gap-4 p-6">
+      <header className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl font-semibold leading-snug md:text-3xl">
+            {currentQuestion?.text ?? "Loading question..."}
+          </h1>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between gap-4">
-            <CardTitle className="text-lg leading-snug">
-              {currentQuestion?.text ?? "Loading question..."}
-            </CardTitle>
-            <span className="shrink-0 font-mono text-2xl font-bold tabular-nums text-primary">
-              {Math.ceil(timeRemaining)}
-            </span>
+        <div className="shrink-0 text-right">
+          <div className="font-mono text-4xl font-bold tabular-nums text-primary">
+            {Math.ceil(timeRemaining)}
           </div>
           <Progress
             value={(timeRemaining / game.questionTimeSeconds) * 100}
-            className="h-1.5"
+            className="mt-2 h-1.5 w-56 max-w-[48vw]"
           />
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="min-h-6" aria-hidden />
+        </div>
+      </header>
 
-          <AnswerOptionGrid>
-            {currentQuestion?.options.map((option, index) => (
-              <AnswerOption
-                key={index}
-                index={index}
-                text={option}
-                variant="interactive"
-                disabled={Boolean(myAnswer) || revealing}
-                onClick={() => onAnswer(index)}
-              />
-            ))}
-            <AnswerStatusFooter
-              message={
-                myAnswer
-                  ? "Answer submitted — waiting for the squad..."
-                  : null
-              }
+      <div className="flex min-h-0 flex-1 flex-col">
+        <AnswerOptionGrid
+          optionCount={optionCount}
+          className="h-full auto-rows-fr"
+        >
+          {options.map((option, index) => (
+            <AnswerOption
+              key={index}
+              index={index}
+              text={option}
+              variant="interactive"
+              fullHeight
+              disabled={Boolean(myAnswer) || revealing}
+              onClick={() => onAnswer(index)}
             />
-          </AnswerOptionGrid>
-        </CardContent>
-      </Card>
+          ))}
+        </AnswerOptionGrid>
+
+        <AnswerStatusFooter
+          className="mt-4"
+          message={
+            myAnswer ? "Answer submitted — waiting for the squad..." : null
+          }
+        />
+      </div>
     </div>
   );
 }

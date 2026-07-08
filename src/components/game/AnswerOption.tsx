@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { ANSWER_OPTIONS } from "@/lib/game";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ type AnswerOptionProps = {
   highlighted?: boolean;
   onClick?: () => void;
   className?: string;
+  fullHeight?: boolean;
 };
 
 export function AnswerOption({
@@ -21,6 +22,7 @@ export function AnswerOption({
   highlighted,
   onClick,
   className,
+  fullHeight,
 }: AnswerOptionProps) {
   const option = ANSWER_OPTIONS[index] ?? ANSWER_OPTIONS[0];
   const Shape = option.shape;
@@ -28,7 +30,7 @@ export function AnswerOption({
   const content = (
     <>
       <Shape
-        className="size-5 shrink-0 fill-white/30 stroke-white"
+        className="size-6 shrink-0 fill-white/30 stroke-white"
         aria-hidden
       />
       <span className="flex-1">{text}</span>
@@ -36,10 +38,11 @@ export function AnswerOption({
   );
 
   const optionClasses = cn(
-    "flex min-h-14 w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium text-white",
+    "flex min-h-0 w-full items-center gap-3 rounded-lg px-4 py-4 text-left text-base font-medium text-white",
     option.color,
     variant === "interactive" && option.hoverColor,
     highlighted && "ring-4 ring-white/50",
+    fullHeight ? "h-full" : undefined,
     className,
   );
 
@@ -47,7 +50,7 @@ export function AnswerOption({
     return (
       <Button
         type="button"
-        className={cn(optionClasses, "h-auto justify-start")}
+        className={cn(optionClasses, "justify-start")}
         disabled={disabled}
         onClick={onClick}
         aria-label={`${option.label}: ${text}`}
@@ -64,12 +67,30 @@ export function AnswerOption({
   );
 }
 
+type AnswerOptionGridProps = {
+  children: ReactNode;
+  optionCount: number;
+  className?: string;
+};
+
 export function AnswerOptionGrid({
   children,
+  optionCount,
   className,
-}: ComponentProps<"div">) {
+}: AnswerOptionGridProps) {
+  const maxCount = Math.max(0, optionCount ?? 0);
+  const columns = maxCount <= 4 ? 2 : 4;
+
   return (
-    <div className={cn("grid gap-2 sm:grid-cols-2", className)}>{children}</div>
+    <div
+      className={cn(
+        "grid gap-2",
+        columns === 4 ? "grid-cols-2 md:grid-cols-4" : "grid-cols-1 sm:grid-cols-2",
+        className,
+      )}
+    >
+      {children}
+    </div>
   );
 }
 
