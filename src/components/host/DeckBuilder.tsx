@@ -50,6 +50,8 @@ import {
   type ShuffleMode,
 } from "@/lib/game";
 import { ShuffleSettingField } from "@/components/host/ShuffleSettingField";
+import { DeckExportMenu } from "@/components/host/DeckExportMenu";
+import type { DeckExportData } from "@/lib/deck-import-export";
 import { cn } from "@/lib/utils";
 
 const MIN_MC_OPTIONS = 2;
@@ -733,9 +735,36 @@ export function DeckBuilder() {
           <Badge variant="outline">Quiz builder</Badge>
           <h1 className="mt-2 text-2xl font-semibold">Edit deck</h1>
         </div>
-        <Button asChild variant="outline" size="sm">
-          <Link to="/">Back</Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <DeckExportMenu
+            deck={{
+              title: deck.title,
+              description: deck.description,
+              answerShuffleMode: deck.answerShuffleMode,
+              questionShuffleMode: deck.questionShuffleMode,
+              answerShuffleScope: deck.answerShuffleScope,
+              questionShuffleScope: deck.questionShuffleScope,
+              questionTimeSeconds: deck.questionTimeSeconds,
+              questions: questions.map((question) => ({
+                text: question.text,
+                options: Array.isArray(question.options)
+                  ? question.options.map(String)
+                  : [],
+                correctIndex: question.correctIndex,
+                order: question.order,
+                questionType: parseQuestionType(question.questionType),
+                answerConfig:
+                  question.answerConfig &&
+                  typeof question.answerConfig === "object"
+                    ? (question.answerConfig as DeckExportData["questions"][number]["answerConfig"])
+                    : null,
+              })),
+            }}
+          />
+          <Button asChild variant="outline" size="sm">
+            <Link to="/">Back</Link>
+          </Button>
+        </div>
       </div>
 
       <DeckDetailsForm key={`details-${deck.id}`} deck={deck} />

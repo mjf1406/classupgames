@@ -7,6 +7,7 @@ import {
   Pencil,
   Plus,
   Trash2,
+  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -46,11 +47,21 @@ import {
   DEFAULT_SETTING_SCOPE,
   getGameDeadline,
   parseDurationSeconds,
+  parseQuestionType,
 } from "@/lib/game";
 import type { AnswerRecord, GameRecord } from "@/lib/types";
 import { normalizeGame } from "@/lib/useGameSession";
 import { endGame } from "@/lib/useHostGameEngine";
 import { cn } from "@/lib/utils";
+import { DeckExportMenuItems } from "@/components/host/DeckExportMenuItems";
+import { ExportPreviewDialog } from "@/components/host/ExportPreviewDialog";
+import { useDeckExport } from "@/components/host/useDeckExport";
+import {
+  createDeckFromImport,
+  parseDeckFile,
+  resolveImportedTitle,
+  type DeckExportData,
+} from "@/lib/deck-import-export";
 
 const RECENT_GAME_MS = 24 * 60 * 60 * 1000;
 
@@ -59,6 +70,11 @@ type DeckWithQuestions = {
   title: string;
   description?: string | null;
   isBuiltIn: boolean;
+  answerShuffleMode?: string | null;
+  questionShuffleMode?: string | null;
+  answerShuffleScope?: string | null;
+  questionShuffleScope?: string | null;
+  questionTimeSeconds?: number | null;
   owner?: { id: string } | null;
   questions: {
     id: string;
@@ -70,6 +86,33 @@ type DeckWithQuestions = {
     answerConfig?: unknown;
   }[];
 };
+
+function toDeckExportData(deck: DeckWithQuestions): DeckExportData {
+  return {
+    title: deck.title,
+    description: deck.description,
+    answerShuffleMode: deck.answerShuffleMode,
+    questionShuffleMode: deck.questionShuffleMode,
+    answerShuffleScope: deck.answerShuffleScope,
+    questionShuffleScope: deck.questionShuffleScope,
+    questionTimeSeconds: deck.questionTimeSeconds,
+    questions: [...deck.questions]
+      .sort((a, b) => a.order - b.order)
+      .map((question) => ({
+        text: question.text,
+        options: Array.isArray(question.options)
+          ? question.options.map(String)
+          : [],
+        correctIndex: question.correctIndex,
+        order: question.order,
+        questionType: parseQuestionType(question.questionType),
+        answerConfig:
+          question.answerConfig && typeof question.answerConfig === "object"
+            ? (question.answerConfig as DeckExportData["questions"][number]["answerConfig"])
+            : null,
+      })),
+  };
+}
 
 function formatRelativeTime(timestamp: number, now: number) {
   const diffMs = now - timestamp;
@@ -99,6 +142,16 @@ function DeckCard({ deck }: { deck: DeckWithQuestions }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const canLaunch = deck.questions.length > 0;
+  const exportDeck = toDeckExportData(deck);
+  const {
+    preview,
+    previewOpen,
+    pendingFormat,
+    runExport,
+    requestThirdPartyExport,
+    confirmPendingExport,
+    closePreview,
+  } = useDeckExport(exportDeck);
 
   const handleLaunch = () => {
     void navigate({ to: "/l/$deckId", params: { deckId: deck.id } });
@@ -174,6 +227,12 @@ function DeckCard({ deck }: { deck: DeckWithQuestions }) {
                     <Pencil />
                     Edit
                   </DropdownMenuItem>
+                  <DeckExportMenuItems
+                    onSquadGames={() => runExport("squad-games")}
+                    onKahoot={() => requestThirdPartyExport("kahoot")}
+                    onBlooket={() => requestThirdPartyExport("blooket")}
+                    onGimkit={() => requestThirdPartyExport("gimkit")}
+                  />
                   <DropdownMenuItem
                     variant="destructive"
                     onSelect={() => setDeleteOpen(true)}
@@ -201,7 +260,17 @@ function DeckCard({ deck }: { deck: DeckWithQuestions }) {
       </Card>
 
       {!deck.isBuiltIn ? (
-        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <>
+          {pendingFormat ? (
+            <ExportPreviewDialog
+              open={previewOpen}
+              onOpenChange={closePreview}
+              format={pendingFormat}
+              preview={preview}
+              onConfirm={confirmPendingExport}
+            />
+          ) : null}
+          <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
           <AlertDialogContent
             onClick={(event) => event.stopPropagation()}
           >
@@ -228,6 +297,7 @@ function DeckCard({ deck }: { deck: DeckWithQuestions }) {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        </>
       ) : null}
     </>
   );
@@ -283,6 +353,8 @@ export function HostDashboard() {
   const { user } = db.useAuth();
   const [newTitle, setNewTitle] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -435,6 +507,28 @@ export function HostDashboard() {
     }
   };
 
+  const handleImportDeck = async (file: File) => {
+    if (!user) return;
+    setIsImporting(true);
+    try {
+      const { deck: imported } = await parseDeckFile(file);
+      const title = resolveImportedTitle(imported, file.name, newTitle);
+      const deckId = await createDeckFromImport(imported, user.id, title);
+      setNewTitle("");
+      toast.success(`Imported ${imported.questions.length} questions`);
+      await navigate({ to: "/d/$deckId", params: { deckId } });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not import deck.",
+      );
+    } finally {
+      setIsImporting(false);
+      if (importInputRef.current) {
+        importInputRef.current.value = "";
+      }
+    }
+  };
+
   return (
     <main className="mx-auto max-w-5xl space-y-8 px-6 py-10">
       <div className="space-y-2">
@@ -464,27 +558,54 @@ export function HostDashboard() {
         <CardHeader>
           <CardTitle className="text-lg">Create a deck</CardTitle>
           <CardDescription>
-            Build your own question set for any game type.
+            Build your own question set or import from Squad Games, Kahoot,
+            Blooket, or Gimkit.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-3 sm:flex-row">
-          <div className="flex-1 space-y-2">
-            <Label htmlFor="deck-title">Deck title</Label>
-            <Input
-              id="deck-title"
-              placeholder="My trivia deck"
-              value={newTitle}
-              onChange={(event) => setNewTitle(event.target.value)}
-            />
+        <CardContent className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="flex-1 space-y-2">
+              <Label htmlFor="deck-title">Deck title</Label>
+              <Input
+                id="deck-title"
+                placeholder="My trivia deck"
+                value={newTitle}
+                onChange={(event) => setNewTitle(event.target.value)}
+              />
+            </div>
+            <Button
+              className="sm:self-end"
+              onClick={() => void handleCreateDeck()}
+              disabled={isCreating || isImporting || !newTitle.trim()}
+            >
+              <Plus className="size-4" />
+              Create deck
+            </Button>
           </div>
-          <Button
-            className="sm:self-end"
-            onClick={() => void handleCreateDeck()}
-            disabled={isCreating || !newTitle.trim()}
-          >
-            <Plus className="size-4" />
-            Create deck
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".json,.csv,.xlsx"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void handleImportDeck(file);
+              }}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isCreating || isImporting}
+              onClick={() => importInputRef.current?.click()}
+            >
+              <Upload className="size-4" />
+              {isImporting ? "Importing..." : "Import deck"}
+            </Button>
+            <p className="text-sm text-muted-foreground">
+              Accepts .json, .csv, and .xlsx
+            </p>
+          </div>
         </CardContent>
       </Card>
 
