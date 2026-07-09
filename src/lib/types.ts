@@ -1,25 +1,32 @@
 import type {
+  AnswerConfig,
+  AnswerResponse,
   GameType,
   GameStatus,
+  PlayerAnswerInput,
   QuestionType,
   SettingScope,
   ShuffleMode,
 } from "@/lib/game";
 
+export type { AnswerConfig, AnswerResponse, PlayerAnswerInput, QuestionType };
+
 export type QuestionSnapshot = {
   text: string;
   options: string[];
-  correctIndex: number;
   questionType: QuestionType;
+  correctIndex?: number;
+  answerConfig?: AnswerConfig;
 };
 
 export type DeckQuestion = {
   id: string;
   text: string;
   options: string[];
-  correctIndex: number;
+  correctIndex?: number | null;
   order: number;
   questionType?: QuestionType | null;
+  answerConfig?: AnswerConfig | null;
 };
 
 export type DeckShuffleSettings = {
@@ -80,6 +87,7 @@ export type AnswerRecord = {
   isCorrect: boolean;
   answeredAt: number;
   distanceGained: number;
+  response?: AnswerResponse | null;
   player?: { id: string; nickname: string } | null;
 };
 

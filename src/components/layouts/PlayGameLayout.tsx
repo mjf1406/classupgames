@@ -201,8 +201,9 @@ export function PlayGameLayout({
   };
 
   const handleAdjustGameTime =
-    isHost && game.status === "playing"
+    isHost && game?.status === "playing"
       ? (deltaSeconds: number) => {
+          if (!game) return;
           void adjustGameTime(game.id, deltaSeconds);
         }
       : undefined;

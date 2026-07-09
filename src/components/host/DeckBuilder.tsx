@@ -37,10 +37,14 @@ import {
   QUESTION_TIME_CTRL_STEP,
   QUESTION_TIME_SHIFT_STEP,
   QUESTION_TIME_STEP,
+  QUESTION_TYPE_OPTIONS,
+  getQuestionTypeLabel,
+  parseAnswerConfig,
   parseQuestionTimeSeconds,
   parseQuestionType,
   parseSettingScope,
   parseShuffleMode,
+  summarizeQuestionAnswer,
   type QuestionType,
   type SettingScope,
   type ShuffleMode,
@@ -55,6 +59,16 @@ const TF_OPTIONS = ["True", "False"] as const;
 
 function createEmptyOptions(count: number) {
   return Array.from({ length: count }, () => "");
+}
+
+function isNumberOnStep(value: number, min: number, step: number): boolean {
+  if (!Number.isFinite(value) || !Number.isFinite(min) || step <= 0) return false;
+  const steps = (value - min) / step;
+  return Math.abs(steps - Math.round(steps)) < 1e-9;
+}
+
+function getNonEmptyOptions(options: string[]): string[] {
+  return options.map((option) => option.trim()).filter(Boolean);
 }
 
 function DeckDetailsForm({
@@ -247,22 +261,95 @@ export function DeckBuilder() {
     createEmptyOptions(INITIAL_MC_OPTIONS),
   );
   const [draftCorrect, setDraftCorrect] = useState(0);
+  const [draftCorrectIndices, setDraftCorrectIndices] = useState<number[]>([0]);
+  const [draftSelectCount, setDraftSelectCount] = useState("1");
+  const [draftCorrectText, setDraftCorrectText] = useState("");
+  const [draftNumberMin, setDraftNumberMin] = useState("0");
+  const [draftNumberMax, setDraftNumberMax] = useState("10");
+  const [draftNumberStep, setDraftNumberStep] = useState("1");
+  const [draftNumberValue, setDraftNumberValue] = useState("5");
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const trimmedDraftOptions = draftOptions.map((option) => option.trim());
-  const nonEmptyDraftOptionsCount = trimmedDraftOptions.filter(Boolean).length;
-  const canSaveQuestion =
-    Boolean(draftText.trim()) &&
-    (draftType === "tf"
-      ? draftCorrect === 0 || draftCorrect === 1
-      : nonEmptyDraftOptionsCount >= MIN_MC_OPTIONS &&
-        Boolean(trimmedDraftOptions[draftCorrect]));
+  const nonEmptyDraftOptions = getNonEmptyOptions(draftOptions);
+  const nonEmptyDraftOptionsCount = nonEmptyDraftOptions.length;
+
+  const numberMin = Number(draftNumberMin);
+  const numberMax = Number(draftNumberMax);
+  const numberStep = Number(draftNumberStep);
+  const numberValue = Number(draftNumberValue);
+  const isNumberLineValid =
+    Number.isFinite(numberMin) &&
+    Number.isFinite(numberMax) &&
+    Number.isFinite(numberStep) &&
+    Number.isFinite(numberValue) &&
+    numberStep > 0 &&
+    numberMin < numberMax &&
+    numberValue >= numberMin &&
+    numberValue <= numberMax &&
+    isNumberOnStep(numberValue, numberMin, numberStep);
+
+  const canSaveQuestion = (() => {
+    if (!draftText.trim()) return false;
+
+    switch (draftType) {
+      case "tf":
+        return draftCorrect === 0 || draftCorrect === 1;
+      case "mc":
+        return (
+          nonEmptyDraftOptionsCount >= MIN_MC_OPTIONS &&
+          Boolean(trimmedDraftOptions[draftCorrect])
+        );
+      case "typeIn":
+        return Boolean(draftCorrectText.trim());
+      case "numberLine":
+        return isNumberLineValid;
+      case "order":
+        return nonEmptyDraftOptionsCount >= MIN_MC_OPTIONS;
+      case "exactSet":
+        return (
+          nonEmptyDraftOptionsCount >= MIN_MC_OPTIONS &&
+          draftCorrectIndices.length > 0 &&
+          draftCorrectIndices.every(
+            (index) =>
+              index >= 0 &&
+              index < draftOptions.length &&
+              Boolean(trimmedDraftOptions[index]),
+          )
+        );
+      case "selectN": {
+        const selectCount = Number(draftSelectCount);
+        return (
+          nonEmptyDraftOptionsCount >= MIN_MC_OPTIONS &&
+          draftCorrectIndices.length > 0 &&
+          Number.isFinite(selectCount) &&
+          selectCount >= 1 &&
+          selectCount <= draftCorrectIndices.length &&
+          draftCorrectIndices.every(
+            (index) =>
+              index >= 0 &&
+              index < draftOptions.length &&
+              Boolean(trimmedDraftOptions[index]),
+          )
+        );
+      }
+      default:
+        return false;
+    }
+  })();
 
   const resetDraft = () => {
     setDraftType("mc");
     setDraftText("");
     setDraftOptions(createEmptyOptions(INITIAL_MC_OPTIONS));
     setDraftCorrect(0);
+    setDraftCorrectIndices([0]);
+    setDraftSelectCount("1");
+    setDraftCorrectText("");
+    setDraftNumberMin("0");
+    setDraftNumberMax("10");
+    setDraftNumberStep("1");
+    setDraftNumberValue("5");
     setEditingId(null);
   };
 
@@ -271,9 +358,30 @@ export function DeckBuilder() {
     if (nextType === "tf") {
       setDraftOptions([...TF_OPTIONS]);
       setDraftCorrect(0);
-    } else {
-      setDraftOptions(createEmptyOptions(INITIAL_MC_OPTIONS));
+      setDraftCorrectIndices([]);
+      return;
+    }
+
+    if (nextType === "typeIn" || nextType === "numberLine") {
+      setDraftOptions([]);
+      setDraftCorrectIndices([]);
+      return;
+    }
+
+    if (
+      nextType === "order" ||
+      nextType === "exactSet" ||
+      nextType === "selectN" ||
+      nextType === "mc"
+    ) {
+      if (draftOptions.length < MIN_MC_OPTIONS) {
+        setDraftOptions(createEmptyOptions(INITIAL_MC_OPTIONS));
+      }
       setDraftCorrect(0);
+      setDraftCorrectIndices([0]);
+      if (nextType === "selectN") {
+        setDraftSelectCount("1");
+      }
     }
   };
 
@@ -286,57 +394,176 @@ export function DeckBuilder() {
     if (draftOptions.length <= INITIAL_MC_OPTIONS) return;
     const next = draftOptions.filter((_, i) => i !== index);
     setDraftOptions(next);
-    if (draftCorrect === index) {
-      const firstFilled = next.findIndex((v) => Boolean(v.trim()));
-      setDraftCorrect(firstFilled >= 0 ? firstFilled : 0);
-    } else if (draftCorrect > index) {
-      setDraftCorrect(draftCorrect - 1);
+    if (draftType === "mc" || draftType === "tf") {
+      if (draftCorrect === index) {
+        const firstFilled = next.findIndex((v) => Boolean(v.trim()));
+        setDraftCorrect(firstFilled >= 0 ? firstFilled : 0);
+      } else if (draftCorrect > index) {
+        setDraftCorrect(draftCorrect - 1);
+      }
+      return;
+    }
+
+    setDraftCorrectIndices((current) =>
+      current
+        .filter((value) => value !== index)
+        .map((value) => (value > index ? value - 1 : value)),
+    );
+  };
+
+  const handleMoveDraftOption = (index: number, direction: -1 | 1) => {
+    const swapIndex = index + direction;
+    if (swapIndex < 0 || swapIndex >= draftOptions.length) return;
+    const next = [...draftOptions];
+    [next[index], next[swapIndex]] = [next[swapIndex]!, next[index]!];
+    setDraftOptions(next);
+
+    if (draftType === "mc") {
+      if (draftCorrect === index) setDraftCorrect(swapIndex);
+      else if (draftCorrect === swapIndex) setDraftCorrect(index);
+      return;
+    }
+
+    setDraftCorrectIndices((current) =>
+      current.map((value) => {
+        if (value === index) return swapIndex;
+        if (value === swapIndex) return index;
+        return value;
+      }),
+    );
+  };
+
+  const toggleDraftCorrectIndex = (index: number) => {
+    setDraftCorrectIndices((current) => {
+      if (current.includes(index)) {
+        const next = current.filter((value) => value !== index);
+        return next.length > 0 ? next : [index];
+      }
+      return [...current, index].sort((a, b) => a - b);
+    });
+  };
+
+  const buildQuestionPayload = () => {
+    const text = draftText.trim();
+
+    switch (draftType) {
+      case "tf":
+        return {
+          text,
+          questionType: draftType,
+          options: [...TF_OPTIONS],
+          correctIndex: draftCorrect === 1 ? 1 : 0,
+          answerConfig: null,
+        };
+      case "mc": {
+        const trimmedOptions = draftOptions.map((option) => option.trim());
+        const nonEmptyOptions = trimmedOptions.filter(Boolean);
+        let correctIndex = -1;
+        let nonEmptyCount = 0;
+        for (let i = 0; i < trimmedOptions.length; i++) {
+          if (!trimmedOptions[i]) continue;
+          if (i === draftCorrect) correctIndex = nonEmptyCount;
+          nonEmptyCount++;
+        }
+        return {
+          text,
+          questionType: draftType,
+          options: nonEmptyOptions,
+          correctIndex,
+          answerConfig: null,
+        };
+      }
+      case "typeIn":
+        return {
+          text,
+          questionType: draftType,
+          options: [],
+          correctIndex: null,
+          answerConfig: { correctText: draftCorrectText.trim() },
+        };
+      case "numberLine":
+        return {
+          text,
+          questionType: draftType,
+          options: [],
+          correctIndex: null,
+          answerConfig: {
+            min: numberMin,
+            max: numberMax,
+            step: numberStep,
+            correctValue: numberValue,
+          },
+        };
+      case "order":
+        return {
+          text,
+          questionType: draftType,
+          options: nonEmptyDraftOptions,
+          correctIndex: null,
+          answerConfig: {},
+        };
+      case "exactSet": {
+        const trimmedOptions = draftOptions.map((option) => option.trim());
+        const nonEmptyOptions = trimmedOptions.filter(Boolean);
+        const correctIndices: number[] = [];
+        let nonEmptyCount = 0;
+        for (let i = 0; i < trimmedOptions.length; i++) {
+          if (!trimmedOptions[i]) continue;
+          if (draftCorrectIndices.includes(i)) {
+            correctIndices.push(nonEmptyCount);
+          }
+          nonEmptyCount++;
+        }
+        return {
+          text,
+          questionType: draftType,
+          options: nonEmptyOptions,
+          correctIndex: null,
+          answerConfig: { correctIndices },
+        };
+      }
+      case "selectN": {
+        const trimmedOptions = draftOptions.map((option) => option.trim());
+        const nonEmptyOptions = trimmedOptions.filter(Boolean);
+        const correctIndices: number[] = [];
+        let nonEmptyCount = 0;
+        for (let i = 0; i < trimmedOptions.length; i++) {
+          if (!trimmedOptions[i]) continue;
+          if (draftCorrectIndices.includes(i)) {
+            correctIndices.push(nonEmptyCount);
+          }
+          nonEmptyCount++;
+        }
+        return {
+          text,
+          questionType: draftType,
+          options: nonEmptyOptions,
+          correctIndex: null,
+          answerConfig: {
+            correctIndices,
+            selectCount: Number(draftSelectCount),
+          },
+        };
+      }
+      default:
+        return null;
     }
   };
 
   const handleSaveQuestion = async () => {
-    if (!deck || !draftText.trim()) return;
-
-    let nonEmptyOptions: string[];
-    let correctIndex: number;
-
-    if (draftType === "tf") {
-      nonEmptyOptions = [...TF_OPTIONS];
-      correctIndex = draftCorrect === 1 ? 1 : 0;
-    } else {
-      const trimmedOptions = draftOptions.map((option) => option.trim());
-      nonEmptyOptions = trimmedOptions.filter((option) => Boolean(option));
-      if (nonEmptyOptions.length < MIN_MC_OPTIONS) return;
-
-      correctIndex = -1;
-      let nonEmptyCount = 0;
-      for (let i = 0; i < trimmedOptions.length; i++) {
-        if (!trimmedOptions[i]) continue;
-        if (i === draftCorrect) correctIndex = nonEmptyCount;
-        nonEmptyCount++;
-      }
-      if (correctIndex < 0) return;
-    }
+    if (!deck || !canSaveQuestion) return;
+    const payload = buildQuestionPayload();
+    if (!payload) return;
 
     if (editingId) {
-      await db.transact(
-        db.tx.questions[editingId].update({
-          text: draftText.trim(),
-          options: nonEmptyOptions,
-          correctIndex,
-          questionType: draftType,
-        }),
-      );
+      await db.transact(db.tx.questions[editingId].update(payload));
     } else {
       const questionId = id();
       await db.transact(
         db.tx.questions[questionId]
           .update({
-            text: draftText.trim(),
-            options: nonEmptyOptions,
-            correctIndex,
+            ...payload,
             order: questions.length,
-            questionType: draftType,
           })
           .link({ deck: deck.id }),
       );
@@ -362,22 +589,76 @@ export function DeckBuilder() {
       setDraftCorrect(
         question.correctIndex === 1 || existingOptions[0] === "False" ? 1 : 0,
       );
-    } else {
-      const visibleCount = Math.min(
-        MAX_MC_OPTIONS,
-        Math.max(INITIAL_MC_OPTIONS, existingOptions.length),
-      );
-      const nextOptions = [
-        ...existingOptions,
-        ...createEmptyOptions(visibleCount),
-      ].slice(0, visibleCount);
-      setDraftOptions(nextOptions);
+      setDraftCorrectIndices([]);
+      return;
+    }
+
+    if (type === "typeIn") {
+      const config = parseAnswerConfig(
+        "typeIn",
+        question.answerConfig,
+      ) as import("@/lib/game").TypeInAnswerConfig | undefined;
+      setDraftOptions([]);
+      setDraftCorrectText(config?.correctText ?? "");
+      return;
+    }
+
+    if (type === "numberLine") {
+      const config = parseAnswerConfig(
+        "numberLine",
+        question.answerConfig,
+      ) as import("@/lib/game").NumberLineAnswerConfig | undefined;
+      setDraftOptions([]);
+      setDraftNumberMin(String(config?.min ?? 0));
+      setDraftNumberMax(String(config?.max ?? 10));
+      setDraftNumberStep(String(config?.step ?? 1));
+      setDraftNumberValue(String(config?.correctValue ?? 5));
+      return;
+    }
+
+    const visibleCount = Math.min(
+      MAX_MC_OPTIONS,
+      Math.max(INITIAL_MC_OPTIONS, existingOptions.length),
+    );
+    const nextOptions = [
+      ...existingOptions,
+      ...createEmptyOptions(visibleCount),
+    ].slice(0, visibleCount);
+    setDraftOptions(nextOptions);
+
+    if (type === "mc") {
       setDraftCorrect(
-        question.correctIndex >= 0 &&
+        question.correctIndex != null &&
+          question.correctIndex >= 0 &&
           question.correctIndex < existingOptions.length
           ? question.correctIndex
           : 0,
       );
+      setDraftCorrectIndices([]);
+      return;
+    }
+
+    if (type === "order") {
+      setDraftCorrectIndices([]);
+      return;
+    }
+
+    if (type === "exactSet") {
+      const config = parseAnswerConfig(
+        "exactSet",
+        question.answerConfig,
+      ) as import("@/lib/game").ExactSetAnswerConfig | undefined;
+      setDraftCorrectIndices(config?.correctIndices ?? [0]);
+      return;
+    }
+
+    if (type === "selectN") {
+      const config = parseAnswerConfig(
+        "selectN",
+        question.answerConfig,
+      ) as import("@/lib/game").SelectNAnswerConfig | undefined;
+      setDraftCorrectIndices(config?.correctIndices ?? [0]);
+      setDraftSelectCount(String(config?.selectCount ?? 1));
     }
   };
 
@@ -466,9 +747,7 @@ export function DeckBuilder() {
             {editingId ? "Edit question" : "Add question"}
           </CardTitle>
           <CardDescription>
-            Choose Multiple Choice or True or False. Multiple choice questions
-            need at least {MIN_MC_OPTIONS} options and can have up to{" "}
-            {MAX_MC_OPTIONS}.
+            Choose a question type and configure the correct answer.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -477,17 +756,26 @@ export function DeckBuilder() {
             <Select
               value={draftType}
               onValueChange={(value) =>
-                handleTypeChange(value === "tf" ? "tf" : "mc")
+                handleTypeChange(parseQuestionType(value))
               }
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="mc">Multiple Choice</SelectItem>
-                <SelectItem value="tf">True or False</SelectItem>
+                {QUESTION_TYPE_OPTIONS.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
+            <p className="text-sm text-muted-foreground">
+              {
+                QUESTION_TYPE_OPTIONS.find((option) => option.id === draftType)
+                  ?.description
+              }
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -499,6 +787,64 @@ export function DeckBuilder() {
               rows={2}
             />
           </div>
+
+          {draftType === "typeIn" ? (
+            <div className="space-y-2">
+              <Label htmlFor="correct-text">Correct answer</Label>
+              <Input
+                id="correct-text"
+                value={draftCorrectText}
+                onChange={(event) => setDraftCorrectText(event.target.value)}
+                placeholder="Exact answer players must type"
+              />
+              <p className="text-sm text-muted-foreground">
+                Matching is case-insensitive with trimmed whitespace.
+              </p>
+            </div>
+          ) : null}
+
+          {draftType === "numberLine" ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="number-min">Minimum</Label>
+                <NumberInput
+                  id="number-min"
+                  value={draftNumberMin}
+                  onChange={setDraftNumberMin}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="number-max">Maximum</Label>
+                <NumberInput
+                  id="number-max"
+                  value={draftNumberMax}
+                  onChange={setDraftNumberMax}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="number-step">Step</Label>
+                <NumberInput
+                  id="number-step"
+                  value={draftNumberStep}
+                  onChange={setDraftNumberStep}
+                  min={0.0001}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="number-value">Correct value</Label>
+                <NumberInput
+                  id="number-value"
+                  value={draftNumberValue}
+                  onChange={setDraftNumberValue}
+                />
+              </div>
+              {!isNumberLineValid ? (
+                <p className="text-sm text-destructive sm:col-span-2">
+                  Set a valid range, step, and exact correct value on that step.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           {draftType === "tf" ? (
             <div className="space-y-3">
@@ -522,7 +868,7 @@ export function DeckBuilder() {
                 ))}
               </div>
             </div>
-          ) : (
+          ) : draftType === "mc" ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 At least {MIN_MC_OPTIONS} options are required; you can add up
@@ -592,7 +938,142 @@ export function DeckBuilder() {
                 </Button>
               ) : null}
             </div>
-          )}
+          ) : draftType === "order" ? (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                List items in the correct order. Players will reorder a shuffled
+                list during play.
+              </p>
+              {draftOptions.map((option, index) => (
+                <div key={index} className="space-y-2 rounded-lg border p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor={`order-option-${index}`}>
+                      Position {index + 1}
+                    </Label>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon-sm"
+                        onClick={() => handleMoveDraftOption(index, -1)}
+                        disabled={index === 0}
+                      >
+                        <ArrowUp className="size-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon-sm"
+                        onClick={() => handleMoveDraftOption(index, 1)}
+                        disabled={index === draftOptions.length - 1}
+                      >
+                        <ArrowDown className="size-4" />
+                      </Button>
+                      {draftOptions.length > INITIAL_MC_OPTIONS ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => handleRemoveOption(index)}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                  <Input
+                    id={`order-option-${index}`}
+                    value={option}
+                    onChange={(event) => {
+                      const next = [...draftOptions];
+                      next[index] = event.target.value;
+                      setDraftOptions(next);
+                    }}
+                  />
+                </div>
+              ))}
+              {draftOptions.length < MAX_MC_OPTIONS ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleAddOption}
+                >
+                  <Plus className="size-4" />
+                  Add item
+                </Button>
+              ) : null}
+            </div>
+          ) : draftType === "exactSet" || draftType === "selectN" ? (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                {draftType === "exactSet"
+                  ? "Mark every correct option. Players must select the exact set."
+                  : "Mark the correct pool, then set how many players must pick."}
+              </p>
+              {draftType === "selectN" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="select-count">Pick exactly N</Label>
+                  <NumberInput
+                    id="select-count"
+                    value={draftSelectCount}
+                    onChange={setDraftSelectCount}
+                    min={1}
+                    max={Math.max(1, draftCorrectIndices.length)}
+                  />
+                </div>
+              ) : null}
+              {draftOptions.map((option, index) => {
+                const isOptionFilled = Boolean(option.trim());
+                const isMarked = draftCorrectIndices.includes(index);
+
+                return (
+                  <div key={index} className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label htmlFor={`multi-option-${index}`}>
+                        Option {index + 1}
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <CorrectOptionButton
+                          selected={isMarked}
+                          disabled={!isOptionFilled}
+                          onClick={() => toggleDraftCorrectIndex(index)}
+                        />
+                        {draftOptions.length > INITIAL_MC_OPTIONS ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => handleRemoveOption(index)}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
+                    <Input
+                      id={`multi-option-${index}`}
+                      value={option}
+                      onChange={(event) => {
+                        const next = [...draftOptions];
+                        next[index] = event.target.value;
+                        setDraftOptions(next);
+                      }}
+                    />
+                  </div>
+                );
+              })}
+              {draftOptions.length < MAX_MC_OPTIONS ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleAddOption}
+                >
+                  <Plus className="size-4" />
+                  Add option
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="flex gap-2">
             <Button
@@ -624,6 +1105,16 @@ export function DeckBuilder() {
           ) : (
             questions.map((question, index) => {
               const type = parseQuestionType(question.questionType);
+              const options = Array.isArray(question.options)
+                ? (question.options as string[])
+                : [];
+              const summary = summarizeQuestionAnswer({
+                questionType: type,
+                options,
+                correctIndex: question.correctIndex,
+                answerConfig: question.answerConfig as never,
+              });
+
               return (
                 <div
                   key={question.id}
@@ -635,12 +1126,12 @@ export function DeckBuilder() {
                         {index + 1}. {question.text}
                       </p>
                       <Badge variant="secondary">
-                        {type === "tf" ? "True / False" : "Multiple Choice"}
+                        {getQuestionTypeLabel(type)}
                       </Badge>
                     </div>
-                    <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-                      {(question.options as string[]).map(
-                        (option, optionIndex) => (
+                    {type === "mc" || type === "tf" ? (
+                      <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                        {options.map((option, optionIndex) => (
                           <li
                             key={optionIndex}
                             className={
@@ -652,9 +1143,17 @@ export function DeckBuilder() {
                             {optionIndex === question.correctIndex ? "✓ " : "· "}
                             {option}
                           </li>
-                        ),
-                      )}
-                    </ul>
+                        ))}
+                      </ul>
+                    ) : type === "order" ? (
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        {summary}
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-sm text-foreground">
+                        Answer: {summary}
+                      </p>
+                    )}
                   </div>
                   <div className="flex shrink-0 flex-col gap-1">
                     <Button

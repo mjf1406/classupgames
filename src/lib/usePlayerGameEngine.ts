@@ -5,13 +5,17 @@ import {
   buildLoopSnapshot,
   getDeckShuffleConfig,
   getDistanceGainForCorrect,
+  gradeAnswer,
   isQuestionExpired,
   parseMetersPerCorrect,
   parseQuestionsSnapshot,
+  questionUsesChoiceIndex,
 } from "@/lib/game";
 import type {
   AnswerRecord,
+  AnswerResponse,
   GameRecord,
+  PlayerAnswerInput,
   PlayerRecord,
   QuestionSnapshot,
 } from "@/lib/types";
@@ -54,16 +58,25 @@ export function decodeAnswerQuestionIndex(answerQuestionIndex: number): {
   };
 }
 
+function toStoredResponse(
+  input: PlayerAnswerInput,
+): AnswerResponse | undefined {
+  if (input.kind === "choice") return undefined;
+  return input;
+}
+
 async function advancePlayerAfterAnswer({
   game,
   player,
   isCorrect,
   choiceIndex,
+  response,
 }: {
   game: GameRecord;
   player: PlayerRecord;
   isCorrect: boolean;
   choiceIndex: number;
+  response?: AnswerResponse;
 }) {
   const settings = getDeckShuffleConfig(game);
   const snapshot = getPlayerSnapshot(player, game);
@@ -116,15 +129,21 @@ async function advancePlayerAfterAnswer({
     playerUpdates.questionsSnapshot = nextSnapshot;
   }
 
+  const answerUpdate: Record<string, unknown> = {
+    questionIndex: answerQuestionIndex,
+    choiceIndex,
+    isCorrect,
+    answeredAt: now,
+    distanceGained,
+  };
+
+  if (response) {
+    answerUpdate.response = response;
+  }
+
   await db.transact([
     db.tx.answers[answerId]
-      .update({
-        questionIndex: answerQuestionIndex,
-        choiceIndex,
-        isCorrect,
-        answeredAt: now,
-        distanceGained,
-      })
+      .update(answerUpdate)
       .link({ game: game.id, player: player.id }),
     db.tx.players[player.id].update(playerUpdates),
   ]);
@@ -133,20 +152,23 @@ async function advancePlayerAfterAnswer({
 export async function submitPlayerAnswer({
   game,
   player,
-  choiceIndex,
-  correctIndex,
+  question,
+  input,
 }: {
   game: GameRecord;
   player: PlayerRecord;
-  choiceIndex: number;
-  correctIndex: number;
+  question: QuestionSnapshot;
+  input: PlayerAnswerInput;
 }) {
-  const isCorrect = choiceIndex === correctIndex;
+  const isCorrect = gradeAnswer(question, input);
+  const choiceIndex =
+    input.kind === "choice" ? input.choiceIndex : -1;
   await advancePlayerAfterAnswer({
     game,
     player,
     isCorrect,
     choiceIndex,
+    response: toStoredResponse(input),
   });
 }
 
@@ -224,4 +246,9 @@ export function usePlayerGameEngine(
 
     return () => window.clearInterval(interval);
   }, [answers, game, player]);
+}
+
+export function isChoiceQuestion(question: QuestionSnapshot | null): boolean {
+  if (!question) return false;
+  return questionUsesChoiceIndex(question.questionType);
 }

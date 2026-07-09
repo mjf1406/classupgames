@@ -188,7 +188,105 @@ export const DURATION_PRESETS: { label: string; minutes: number }[] = [
     { label: "15 min", minutes: 15 },
     { label: "20 min", minutes: 20 },
 ];
-export type QuestionType = "mc" | "tf";
+export type QuestionType =
+    | "mc"
+    | "tf"
+    | "typeIn"
+    | "numberLine"
+    | "order"
+    | "exactSet"
+    | "selectN";
+
+export type TypeInAnswerConfig = {
+    correctText: string;
+};
+
+export type NumberLineAnswerConfig = {
+    min: number;
+    max: number;
+    step: number;
+    correctValue: number;
+};
+
+export type OrderAnswerConfig = {
+    originalIndices?: number[];
+};
+
+export type ExactSetAnswerConfig = {
+    correctIndices: number[];
+};
+
+export type SelectNAnswerConfig = {
+    correctIndices: number[];
+    selectCount: number;
+};
+
+export type AnswerConfig =
+    | TypeInAnswerConfig
+    | NumberLineAnswerConfig
+    | OrderAnswerConfig
+    | ExactSetAnswerConfig
+    | SelectNAnswerConfig
+    | Record<string, never>;
+
+export type AnswerResponse =
+    | { kind: "text"; text: string }
+    | { kind: "number"; value: number }
+    | { kind: "order"; order: number[] }
+    | { kind: "multi"; selectedIndices: number[] };
+
+export type PlayerAnswerInput =
+    | { kind: "choice"; choiceIndex: number }
+    | AnswerResponse;
+
+export const QUESTION_TYPE_OPTIONS: {
+    id: QuestionType;
+    label: string;
+    description: string;
+}[] = [
+    {
+        id: "mc",
+        label: "Multiple Choice",
+        description: "Pick one correct option.",
+    },
+    {
+        id: "tf",
+        label: "True or False",
+        description: "Pick True or False.",
+    },
+    {
+        id: "typeIn",
+        label: "Type Answer",
+        description: "Type the exact answer.",
+    },
+    {
+        id: "numberLine",
+        label: "Number Line",
+        description: "Slide to the exact value.",
+    },
+    {
+        id: "order",
+        label: "Order Items",
+        description: "Put items in the correct order.",
+    },
+    {
+        id: "exactSet",
+        label: "Select Exact Set",
+        description: "Select all correct options and none incorrect.",
+    },
+    {
+        id: "selectN",
+        label: "Select N",
+        description: "Pick exactly N from the correct pool.",
+    },
+];
+
+export function getQuestionTypeLabel(type: QuestionType): string {
+    return (
+        QUESTION_TYPE_OPTIONS.find((option) => option.id === type)?.label ??
+        "Multiple Choice"
+    );
+}
 export type ShuffleMode = "none" | "once" | "eachRepetition";
 export type SettingScope = "everyone" | "perPlayer";
 
@@ -335,7 +433,262 @@ export function parseMetersPerCorrect(value: unknown): number {
 }
 
 export function parseQuestionType(value: unknown): QuestionType {
-    return value === "tf" ? "tf" : "mc";
+    if (
+        value === "tf" ||
+        value === "typeIn" ||
+        value === "numberLine" ||
+        value === "order" ||
+        value === "exactSet" ||
+        value === "selectN"
+    ) {
+        return value;
+    }
+    return "mc";
+}
+
+function isNumberArray(value: unknown): value is number[] {
+    return (
+        Array.isArray(value) &&
+        value.every((item) => typeof item === "number" && Number.isFinite(item))
+    );
+}
+
+export function parseAnswerConfig(
+    questionType: QuestionType,
+    value: unknown,
+): AnswerConfig | undefined {
+    if (!value || typeof value !== "object") {
+        if (questionType === "order") return {};
+        return undefined;
+    }
+
+    const raw = value as Record<string, unknown>;
+
+    switch (questionType) {
+        case "typeIn":
+            return typeof raw.correctText === "string"
+                ? { correctText: raw.correctText }
+                : undefined;
+        case "numberLine": {
+            const min = Number(raw.min);
+            const max = Number(raw.max);
+            const step = Number(raw.step);
+            const correctValue = Number(raw.correctValue);
+            if (
+                !Number.isFinite(min) ||
+                !Number.isFinite(max) ||
+                !Number.isFinite(step) ||
+                !Number.isFinite(correctValue) ||
+                step <= 0 ||
+                min >= max
+            ) {
+                return undefined;
+            }
+            return { min, max, step, correctValue };
+        }
+        case "order":
+            return isNumberArray(raw.originalIndices)
+                ? { originalIndices: raw.originalIndices }
+                : {};
+        case "exactSet":
+            return isNumberArray(raw.correctIndices) &&
+                raw.correctIndices.length > 0
+                ? { correctIndices: [...raw.correctIndices].sort((a, b) => a - b) }
+                : undefined;
+        case "selectN": {
+            const correctIndices = isNumberArray(raw.correctIndices)
+                ? [...raw.correctIndices].sort((a, b) => a - b)
+                : [];
+            const selectCount = Number(raw.selectCount);
+            if (
+                correctIndices.length === 0 ||
+                !Number.isFinite(selectCount) ||
+                selectCount < 1 ||
+                selectCount > correctIndices.length
+            ) {
+                return undefined;
+            }
+            return { correctIndices, selectCount };
+        }
+        default:
+            return undefined;
+    }
+}
+
+export function parseAnswerResponse(value: unknown): AnswerResponse | null {
+    if (!value || typeof value !== "object") return null;
+    const raw = value as Record<string, unknown>;
+
+    switch (raw.kind) {
+        case "text":
+            return typeof raw.text === "string"
+                ? { kind: "text", text: raw.text }
+                : null;
+        case "number":
+            return typeof raw.value === "number" && Number.isFinite(raw.value)
+                ? { kind: "number", value: raw.value }
+                : null;
+        case "order":
+            return isNumberArray(raw.order)
+                ? { kind: "order", order: raw.order }
+                : null;
+        case "multi":
+            return isNumberArray(raw.selectedIndices)
+                ? {
+                      kind: "multi",
+                      selectedIndices: [...raw.selectedIndices].sort(
+                          (a, b) => a - b,
+                      ),
+                  }
+                : null;
+        default:
+            return null;
+    }
+}
+
+function normalizeTextAnswer(value: string): string {
+    return value.trim().toLowerCase();
+}
+
+function setsEqual(a: number[], b: number[]): boolean {
+    if (a.length !== b.length) return false;
+    return a.every((value, index) => value === b[index]);
+}
+
+export function gradeAnswer(
+    question: QuestionSnapshot,
+    input: PlayerAnswerInput,
+): boolean {
+    switch (question.questionType) {
+        case "mc":
+        case "tf":
+            if (input.kind !== "choice") return false;
+            return input.choiceIndex === question.correctIndex;
+        case "typeIn": {
+            if (input.kind !== "text") return false;
+            const config = parseAnswerConfig(
+                "typeIn",
+                question.answerConfig,
+            ) as TypeInAnswerConfig | undefined;
+            if (!config?.correctText) return false;
+            return (
+                normalizeTextAnswer(input.text) ===
+                normalizeTextAnswer(config.correctText)
+            );
+        }
+        case "numberLine": {
+            if (input.kind !== "number") return false;
+            const config = parseAnswerConfig(
+                "numberLine",
+                question.answerConfig,
+            ) as NumberLineAnswerConfig | undefined;
+            if (!config) return false;
+            return input.value === config.correctValue;
+        }
+        case "order": {
+            if (input.kind !== "order") return false;
+            const expected = question.options.map((_, index) => index);
+            return setsEqual(input.order, expected);
+        }
+        case "exactSet": {
+            if (input.kind !== "multi") return false;
+            const config = parseAnswerConfig(
+                "exactSet",
+                question.answerConfig,
+            ) as ExactSetAnswerConfig | undefined;
+            if (!config) return false;
+            const selected = [...input.selectedIndices].sort((a, b) => a - b);
+            return setsEqual(selected, config.correctIndices);
+        }
+        case "selectN": {
+            if (input.kind !== "multi") return false;
+            const config = parseAnswerConfig(
+                "selectN",
+                question.answerConfig,
+            ) as SelectNAnswerConfig | undefined;
+            if (!config) return false;
+            const selected = [...input.selectedIndices].sort((a, b) => a - b);
+            if (selected.length !== config.selectCount) return false;
+            return selected.every((index) =>
+                config.correctIndices.includes(index),
+            );
+        }
+        default:
+            return false;
+    }
+}
+
+export function summarizeQuestionAnswer(question: {
+    questionType?: QuestionType | null;
+    options: string[];
+    correctIndex?: number | null;
+    answerConfig?: AnswerConfig | null;
+}): string {
+    const type = parseQuestionType(question.questionType);
+
+    switch (type) {
+        case "tf":
+            return question.correctIndex === 1 ? "False" : "True";
+        case "mc":
+            return question.options[question.correctIndex ?? 0] ?? "—";
+        case "typeIn": {
+            const config = parseAnswerConfig("typeIn", question.answerConfig);
+            return (config as TypeInAnswerConfig | undefined)?.correctText ?? "—";
+        }
+        case "numberLine": {
+            const config = parseAnswerConfig(
+                "numberLine",
+                question.answerConfig,
+            );
+            return config
+                ? String((config as NumberLineAnswerConfig).correctValue)
+                : "—";
+        }
+        case "order":
+            return question.options.join(" → ");
+        case "exactSet": {
+            const config = parseAnswerConfig("exactSet", question.answerConfig);
+            if (!config) return "—";
+            const exactConfig = config as ExactSetAnswerConfig;
+            return exactConfig.correctIndices
+                .map((index: number) => question.options[index])
+                .filter(Boolean)
+                .join(", ");
+        }
+        case "selectN": {
+            const config = parseAnswerConfig("selectN", question.answerConfig);
+            if (!config) return "—";
+            const selectConfig = config as SelectNAnswerConfig;
+            const pool = selectConfig.correctIndices
+                .map((index: number) => question.options[index])
+                .filter(Boolean)
+                .join(", ");
+            return `Pick ${selectConfig.selectCount} from: ${pool}`;
+        }
+        default:
+            return "—";
+    }
+}
+
+export function questionUsesChoiceIndex(type: QuestionType): boolean {
+    return type === "mc" || type === "tf";
+}
+
+export function shouldShuffleQuestionOptions(
+    questionType: QuestionType,
+    shuffleAnswers: boolean,
+): boolean {
+    if (
+        questionType === "tf" ||
+        questionType === "typeIn" ||
+        questionType === "numberLine"
+    ) {
+        return false;
+    }
+    if (questionType === "order") {
+        return true;
+    }
+    return shuffleAnswers;
 }
 
 export function generateJoinCode(length = CODE_LENGTH): string {
@@ -646,18 +999,34 @@ export function parseQuestionsSnapshot(value: unknown): QuestionSnapshot[] {
             (item): item is Record<string, unknown> =>
                 typeof item === "object" &&
                 item !== null &&
-                typeof (item as QuestionSnapshot).text === "string" &&
-                Array.isArray((item as QuestionSnapshot).options) &&
-                typeof (item as QuestionSnapshot).correctIndex === "number",
+                typeof item.text === "string" &&
+                Array.isArray(item.options),
         )
-        .map((item) => ({
-            text: item.text as string,
-            options: (item.options as unknown[]).filter(
+        .map((item) => {
+            const questionType = parseQuestionType(item.questionType);
+            const options = (item.options as unknown[]).filter(
                 (option): option is string => typeof option === "string",
-            ),
-            correctIndex: item.correctIndex as number,
-            questionType: parseQuestionType(item.questionType),
-        }));
+            );
+            const snapshot: QuestionSnapshot = {
+                text: item.text as string,
+                options,
+                questionType,
+            };
+
+            if (typeof item.correctIndex === "number") {
+                snapshot.correctIndex = item.correctIndex;
+            }
+
+            const answerConfig = parseAnswerConfig(
+                questionType,
+                item.answerConfig,
+            );
+            if (answerConfig) {
+                snapshot.answerConfig = answerConfig;
+            }
+
+            return snapshot;
+        });
 }
 
 function hashSeed(seed: string): number {
@@ -691,6 +1060,16 @@ function shuffleArray<T>(items: T[], random: () => number = Math.random): T[] {
     return next;
 }
 
+function remapCorrectIndices(
+    correctIndices: number[],
+    indexMap: Map<number, number>,
+): number[] {
+    return correctIndices
+        .map((index) => indexMap.get(index))
+        .filter((index): index is number => index !== undefined)
+        .sort((a, b) => a - b);
+}
+
 export function shuffleQuestionOptions(
     question: QuestionSnapshot,
     random: () => number = Math.random,
@@ -702,6 +1081,53 @@ export function shuffleQuestionOptions(
         index,
     }));
     const shuffled = shuffleArray(indexed, random);
+    const indexMap = new Map<number, number>();
+    shuffled.forEach((item, newIndex) => {
+        indexMap.set(item.index, newIndex);
+    });
+
+    if (question.questionType === "order") {
+        const config = parseAnswerConfig(
+            "order",
+            question.answerConfig,
+        ) as OrderAnswerConfig | undefined;
+        const previous = config?.originalIndices;
+        const originalIndices = shuffled.map((item) => {
+            const authoredIndex = previous?.[item.index];
+            return authoredIndex ?? item.index;
+        });
+        return {
+            ...question,
+            options: shuffled.map((item) => item.option),
+            answerConfig: {
+                originalIndices,
+            },
+        };
+    }
+
+    if (
+        question.questionType === "exactSet" ||
+        question.questionType === "selectN"
+    ) {
+        const config = parseAnswerConfig(
+            question.questionType,
+            question.answerConfig,
+        ) as ExactSetAnswerConfig | SelectNAnswerConfig | undefined;
+        if (!config) return question;
+
+        return {
+            ...question,
+            options: shuffled.map((item) => item.option),
+            answerConfig: {
+                ...config,
+                correctIndices: remapCorrectIndices(
+                    config.correctIndices,
+                    indexMap,
+                ),
+            },
+        };
+    }
+
     const correctIndex = shuffled.findIndex(
         (item) => item.index === question.correctIndex,
     );
@@ -723,9 +1149,10 @@ export type DeckShuffleConfig = {
 type RawDeckQuestion = {
     text: string;
     options: unknown;
-    correctIndex: number;
+    correctIndex?: number;
     order: number;
     questionType?: unknown;
+    answerConfig?: unknown;
 };
 
 function toAuthoritativeSnapshot(
@@ -733,14 +1160,46 @@ function toAuthoritativeSnapshot(
 ): QuestionSnapshot[] {
     return [...questions]
         .sort((a, b) => a.order - b.order)
-        .map((question) => ({
-            text: question.text,
-            options: Array.isArray(question.options)
-                ? (question.options as string[])
-                : [],
-            correctIndex: question.correctIndex,
-            questionType: parseQuestionType(question.questionType),
-        }));
+        .map((question) => {
+            const questionType = parseQuestionType(question.questionType);
+            const snapshot: QuestionSnapshot = {
+                text: question.text,
+                options: Array.isArray(question.options)
+                    ? (question.options as string[])
+                    : [],
+                questionType,
+            };
+
+            if (typeof question.correctIndex === "number") {
+                snapshot.correctIndex = question.correctIndex;
+            }
+
+            const answerConfig = parseAnswerConfig(
+                questionType,
+                question.answerConfig,
+            );
+            if (answerConfig) {
+                snapshot.answerConfig = answerConfig;
+            }
+
+            return snapshot;
+        });
+}
+
+function maybeShuffleQuestionOptions(
+    question: QuestionSnapshot,
+    shouldShuffleAnswers: boolean,
+    random: () => number,
+): QuestionSnapshot {
+    if (
+        !shouldShuffleQuestionOptions(
+            question.questionType,
+            shouldShuffleAnswers,
+        )
+    ) {
+        return question;
+    }
+    return shuffleQuestionOptions(question, random);
 }
 
 function applyScopedShuffles(
@@ -778,9 +1237,13 @@ function applyScopedShuffles(
 
     if (shouldShuffleAnswers) {
         next = next.map((question) =>
-            question.questionType === "tf"
-                ? question
-                : shuffleQuestionOptions(question, random),
+            maybeShuffleQuestionOptions(question, true, random),
+        );
+    } else {
+        next = next.map((question) =>
+            question.questionType === "order"
+                ? shuffleQuestionOptions(question, random)
+                : question,
         );
     }
 
@@ -977,9 +1440,7 @@ export function reshuffleForRepetition(
         settings.answerShuffleMode === "eachRepetition"
     ) {
         snapshot = snapshot.map((question) =>
-            question.questionType === "tf"
-                ? question
-                : shuffleQuestionOptions(question, random),
+            maybeShuffleQuestionOptions(question, true, random),
         );
     }
 

@@ -85,9 +85,10 @@ type DeckOption = {
     questions: {
         text: string;
         options: unknown;
-        correctIndex: number;
+        correctIndex?: number;
         order: number;
         questionType?: unknown;
+        answerConfig?: unknown;
     }[];
     answerShuffleMode?: ShuffleMode | string | null;
     questionShuffleMode?: ShuffleMode | string | null;

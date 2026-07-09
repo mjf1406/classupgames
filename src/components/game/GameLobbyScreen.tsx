@@ -214,9 +214,10 @@ export function GameLobbyScreen({ code, playerId }: GameLobbyScreenProps) {
       questions: (deck.questions ?? []) as {
         text: string;
         options: unknown;
-        correctIndex: number;
+        correctIndex?: number;
         order: number;
         questionType?: unknown;
+        answerConfig?: unknown;
       }[],
     }))
     .filter((deck) => deck.questions.length > 0);

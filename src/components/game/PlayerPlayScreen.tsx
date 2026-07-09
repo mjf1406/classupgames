@@ -1,12 +1,10 @@
-import {
-  AnswerOption,
-  AnswerOptionGrid,
-  AnswerStatusFooter,
-} from "@/components/game/AnswerOption";
+import { AnswerStatusFooter } from "@/components/game/AnswerOption";
+import { QuestionAnswerInput } from "@/components/game/QuestionAnswerInput";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useQuestionTimer } from "@/hooks/useQuestionTimer";
-import { formatDistance } from "@/lib/game";
+import { formatDistance, getQuestionTypeLabel } from "@/lib/game";
+import type { PlayerAnswerInput } from "@/lib/game";
 import type { AnswerRecord, GameRecord, QuestionSnapshot } from "@/lib/types";
 
 type PlayerPlayScreenProps = {
@@ -18,7 +16,7 @@ type PlayerPlayScreenProps = {
   myDistance: number;
   totalDistance: number;
   questionStartedAt?: number | null;
-  onAnswer: (choiceIndex: number) => void;
+  onAnswer: (input: PlayerAnswerInput) => void;
 };
 
 export function PlayerPlayScreen({
@@ -37,8 +35,6 @@ export function PlayerPlayScreen({
     game.questionTimeSeconds,
     game.status === "playing" && !myAnswer,
   );
-  const options = (currentQuestion?.options ?? []).slice(0, 8);
-  const optionCount = options.length;
 
   return (
     <div className="flex min-h-screen w-full flex-col items-center justify-center gap-6 p-6">
@@ -71,22 +67,24 @@ export function PlayerPlayScreen({
           />
         </div>
 
+        {currentQuestion ? (
+          <Badge variant="outline">
+            {getQuestionTypeLabel(currentQuestion.questionType)}
+          </Badge>
+        ) : null}
+
         <h1 className="w-full text-center text-3xl font-semibold leading-snug md:text-4xl">
           {currentQuestion?.text ?? "Loading question..."}
         </h1>
 
-        <AnswerOptionGrid optionCount={optionCount} className="w-full">
-          {options.map((option, index) => (
-            <AnswerOption
-              key={index}
-              index={index}
-              text={option}
-              variant="interactive"
-              disabled={Boolean(myAnswer)}
-              onClick={() => onAnswer(index)}
-            />
-          ))}
-        </AnswerOptionGrid>
+        {currentQuestion ? (
+          <QuestionAnswerInput
+            key={`${currentQuestion.text}-${currentQuestion.questionType}`}
+            question={currentQuestion}
+            disabled={Boolean(myAnswer)}
+            onSubmit={onAnswer}
+          />
+        ) : null}
 
         <AnswerStatusFooter
           message={

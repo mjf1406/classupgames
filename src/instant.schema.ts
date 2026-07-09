@@ -30,10 +30,11 @@ const _schema = i.schema({
     questions: i.entity({
       text: i.string(),
       options: i.json(),
-      correctIndex: i.number(),
+      correctIndex: i.number().optional(),
       order: i.number().indexed(),
-      // "mc" | "tf" — default handled in app as "mc"
+      // mc | tf | typeIn | numberLine | order | exactSet | selectN
       questionType: i.string().optional(),
+      answerConfig: i.json().optional(),
     }),
     games: i.entity({
       code: i.string().unique().indexed(),
@@ -78,6 +79,7 @@ const _schema = i.schema({
       isCorrect: i.boolean(),
       answeredAt: i.number(),
       distanceGained: i.number().optional(),
+      response: i.json().optional(),
     }),
     highScores: i.entity({
       gameType: i.string().indexed(),

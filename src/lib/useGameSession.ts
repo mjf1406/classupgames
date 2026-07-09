@@ -8,6 +8,7 @@ import {
   getGameTimeRemaining,
   getStreakMultiplier,
   getTimeRemaining,
+  parseAnswerResponse,
   parseDurationSeconds,
   parseGameType,
   parseMetersPerCorrect,
@@ -81,6 +82,7 @@ function normalizeAnswer(raw: Record<string, unknown>): AnswerRecord {
     isCorrect: raw.isCorrect as boolean,
     answeredAt: raw.answeredAt as number,
     distanceGained: (raw.distanceGained as number) ?? 0,
+    response: parseAnswerResponse(raw.response),
     player: (raw.player as { id: string; nickname: string } | undefined) ?? null,
   };
 }

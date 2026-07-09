@@ -1,5 +1,6 @@
 import { HostPlayScreen } from "@/components/game/HostPlayScreen";
 import { PlayerPlayScreen } from "@/components/game/PlayerPlayScreen";
+import type { PlayerAnswerInput } from "@/lib/game";
 import { useGameSession } from "@/lib/useGameSession";
 import {
   submitPlayerAnswer,
@@ -34,15 +35,15 @@ export function GamePlayScreen({ code, playerId }: GamePlayScreenProps) {
     answers,
   );
 
-  const handleAnswer = (choiceIndex: number) => {
+  const handleAnswer = (input: PlayerAnswerInput) => {
     if (!game || !currentPlayer || !currentQuestion || myAnswer) return;
     if (game.status !== "playing") return;
 
     void submitPlayerAnswer({
       game,
       player: currentPlayer,
-      choiceIndex,
-      correctIndex: currentQuestion.correctIndex,
+      question: currentQuestion,
+      input,
     });
   };
 

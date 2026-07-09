@@ -84,9 +84,10 @@ type DeckRecord = {
   questions: {
     text: string;
     options: unknown;
-    correctIndex: number;
+    correctIndex?: number;
     order: number;
     questionType?: unknown;
+    answerConfig?: unknown;
   }[];
 };
 
