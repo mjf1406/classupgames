@@ -6,6 +6,7 @@ import {
   formatDistance,
   formatGoalDistance,
   getLevelProgress,
+  isGameTypeEnabled,
   type GameType,
 } from "@/lib/game";
 import { cn } from "@/lib/utils";
@@ -55,9 +56,10 @@ export function DistanceGameVisual({
   const { level, progressPercent } = getLevelProgress(gameType, distanceMeters);
   const VehicleIcon = VEHICLE_ICONS[gameType];
   const showLevelBands = config.levels.length > 1;
+  const isSeaSailors = isGameTypeEnabled(gameType) && gameType === "seaSailors";
 
   const goalDistanceMeters =
-    gameType === "seaSailors" && seaRouteDistanceMeters
+    isSeaSailors && seaRouteDistanceMeters
       ? seaRouteDistanceMeters
       : config.goalMeters;
 
@@ -80,7 +82,7 @@ export function DistanceGameVisual({
       <div className="relative z-10 space-y-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            {gameType === "seaSailors" ? (
+            {isSeaSailors ? (
               <>
                 <p className="text-xs font-medium uppercase tracking-wider text-white/60">
                   Sea progress

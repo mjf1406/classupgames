@@ -3,6 +3,7 @@ import { isGoogleUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
   GAME_TYPES,
+  isGameTypeEnabled,
   computePlayerDistance,
   computeTotalDistance,
   getGameTimeRemaining,
@@ -147,7 +148,10 @@ export function useGameSession(code: string, playerId: string | null) {
     tryEndIfExpired(tickNow);
   }, [game?.status, tickNow, tryEndIfExpired]);
 
-  const gameMeta = GAME_TYPES.find((type) => type.id === game?.gameType);
+  const gameMeta =
+    game && isGameTypeEnabled(game.gameType)
+      ? GAME_TYPES.find((type) => type.id === game.gameType)
+      : undefined;
 
   const playerSnapshot =
     currentPlayer?.questionsSnapshot ?? game?.questionsSnapshot ?? [];

@@ -26,6 +26,7 @@ import {
   formatCode,
   formatDistance,
   getLevelName,
+  isGameTypeEnabled,
 } from "@/lib/game";
 import { joinSearchDefaults } from "@/lib/routes";
 import { useGameSession } from "@/lib/useGameSession";
@@ -259,7 +260,7 @@ export function GameLobbyScreen({ code, playerId }: GameLobbyScreenProps) {
           seaRouteDistanceMeters={game.seaRouteDistanceMeters}
             />
 
-            {game.gameType === "seaSailors" ? (
+            {isGameTypeEnabled(game.gameType) && game.gameType === "seaSailors" ? (
               <div className="rounded-xl border p-4 text-left">
                 <p className="text-sm text-muted-foreground">Route progress</p>
                 <p className="text-lg font-semibold">

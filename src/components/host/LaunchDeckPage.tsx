@@ -26,7 +26,7 @@ import {
   DEFAULT_METERS_PER_CORRECT,
   DURATION_PRESETS,
   DURATION_STEP_MINUTES,
-  GAME_TYPES,
+  SELECTABLE_GAME_TYPES,
   GAME_LEVELS,
   MAX_DURATION_MINUTES,
   MAX_QUESTION_TIME,
@@ -202,7 +202,7 @@ export function LaunchDeckPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {GAME_TYPES.map((type) => {
+              {SELECTABLE_GAME_TYPES.map((type) => {
                 const selected = gameType === type.id;
                 const Icon = GAME_ICONS[type.id];
                 return (

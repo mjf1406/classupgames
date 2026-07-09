@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import {
   GAME_LEVELS,
-  GAME_TYPES,
+  SELECTABLE_GAME_TYPES,
   getGameDifficultyBadges,
   formatDistance,
   formatGoalDistance,
@@ -61,7 +61,7 @@ export function GamesPage() {
       </Card>
 
       <div className="space-y-6">
-        {GAME_TYPES.map((type) => {
+        {SELECTABLE_GAME_TYPES.map((type) => {
           const Icon = GAME_ICONS[type.id];
           const levels = GAME_LEVELS[type.id];
 

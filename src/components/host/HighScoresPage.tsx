@@ -28,7 +28,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { db } from "@/lib/db";
-import { formatDistance, GAME_TYPES, type GameType } from "@/lib/game";
+import { formatDistance, GAME_TYPES, isGameTypeEnabled, type GameType } from "@/lib/game";
 import { deleteUserScoreEntry } from "@/lib/userScoreEntries";
 import type { UserScoreEntryRecord } from "@/lib/types";
 
@@ -182,7 +182,9 @@ export function HighScoresPage() {
       : null,
   );
 
-  const entries = (data?.userScoreEntries ?? []) as UserScoreEntryRecord[];
+  const entries = ((data?.userScoreEntries ?? []) as UserScoreEntryRecord[]).filter(
+    (entry) => isGameTypeEnabled(entry.gameType as GameType),
+  );
 
   return (
     <main className="mx-auto max-w-5xl space-y-8 px-6 py-10">

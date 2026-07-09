@@ -35,6 +35,8 @@ import {
     DURATION_PRESETS,
     DURATION_STEP_MINUTES,
     GAME_TYPES,
+  SELECTABLE_GAME_TYPES,
+  resolveSelectableGameType,
     GAME_LEVELS,
     MAX_DURATION_MINUTES,
     MAX_QUESTION_TIME,
@@ -198,7 +200,9 @@ function GameSetupForm({
     const initialDeck = decks.find((deck) => deck.id === resolvedDeckId);
 
     const [deckId, setDeckId] = useState(resolvedDeckId);
-    const [gameType, setGameType] = useState<GameType>(initialGameType);
+    const [gameType, setGameType] = useState<GameType>(
+        resolveSelectableGameType(initialGameType),
+    );
     const [questionTime, setQuestionTime] = useState(
         String(
             initialDeck
@@ -392,7 +396,7 @@ function GameSetupForm({
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            {GAME_TYPES.map((type) => {
+                            {SELECTABLE_GAME_TYPES.map((type) => {
                                 const Icon = GAME_ICONS[type.id];
                                 return (
                                     <SelectItem

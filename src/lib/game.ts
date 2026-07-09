@@ -386,6 +386,20 @@ export const GAME_TYPES: {
     },
 ];
 
+export const DISABLED_GAME_TYPES: GameType[] = ["seaSailors"];
+
+export function isGameTypeEnabled(gameType: GameType): boolean {
+    return !DISABLED_GAME_TYPES.includes(gameType);
+}
+
+export const SELECTABLE_GAME_TYPES = GAME_TYPES.filter((type) =>
+    isGameTypeEnabled(type.id),
+);
+
+export function resolveSelectableGameType(gameType: GameType): GameType {
+    return isGameTypeEnabled(gameType) ? gameType : "deepDivers";
+}
+
 export function getGameDifficulty(gameType: GameType): GameDifficulty {
     return (
         GAME_TYPES.find((type) => type.id === gameType)?.difficulty ?? "easy"
