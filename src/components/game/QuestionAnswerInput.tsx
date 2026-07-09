@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import {
   AnswerOption,
@@ -19,6 +19,28 @@ type QuestionAnswerInputProps = {
   disabled?: boolean;
   onSubmit: (input: PlayerAnswerInput) => void;
 };
+
+function AnswerInputPanel({
+  children,
+  className,
+  size = "md",
+}: {
+  children: ReactNode;
+  className?: string;
+  size?: "md" | "lg";
+}) {
+  return (
+    <div
+      className={cn(
+        "mx-auto flex w-full flex-col gap-3",
+        size === "lg" ? "max-w-3xl" : "max-w-xl",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
 
 function snapToStep(value: number, min: number, step: number): number {
   const steps = Math.round((value - min) / step);
@@ -71,6 +93,7 @@ function ChoiceAnswerInput({
           text={option}
           variant="interactive"
           disabled={disabled}
+          fullHeight
           onClick={() => onSubmit({ kind: "choice", choiceIndex: index })}
         />
       ))}
@@ -85,7 +108,7 @@ function TypeInAnswerInput({
   const [text, setText] = useState("");
 
   return (
-    <div className="flex w-full max-w-xl flex-col gap-3">
+    <AnswerInputPanel>
       <Label htmlFor="player-answer-text" className="sr-only">
         Your answer
       </Label>
@@ -110,7 +133,7 @@ function TypeInAnswerInput({
       >
         Submit answer
       </Button>
-    </div>
+    </AnswerInputPanel>
   );
 }
 
@@ -143,7 +166,7 @@ function NumberLineAnswerInput({
   const stepCount = Math.max(1, Math.round((max - min) / step));
 
   return (
-    <div className="flex w-full max-w-xl flex-col gap-4">
+    <AnswerInputPanel className="gap-4">
       <div className="text-center font-mono text-4xl font-semibold tabular-nums">
         {clampedValue}
       </div>
@@ -172,7 +195,7 @@ function NumberLineAnswerInput({
       >
         Submit answer
       </Button>
-    </div>
+    </AnswerInputPanel>
   );
 }
 
@@ -214,18 +237,21 @@ function OrderAnswerInput({
   };
 
   return (
-    <div className="flex w-full max-w-xl flex-col gap-3">
+    <AnswerInputPanel>
       {displayOrder.map((displayIndex, position) => (
         <div
           key={`${displayIndex}-${position}`}
-          className="flex items-center gap-2 rounded-lg border px-3 py-2"
+          className="flex items-center gap-2"
         >
-          <span className="w-6 text-sm text-muted-foreground">
+          <span className="w-6 shrink-0 text-sm text-muted-foreground">
             {position + 1}.
           </span>
-          <span className="flex-1 text-base">
-            {question.options[displayIndex]}
-          </span>
+          <AnswerOption
+            index={displayIndex}
+            text={question.options[displayIndex] ?? ""}
+            variant="static"
+            className="flex-1"
+          />
           <Button
             type="button"
             variant="outline"
@@ -254,7 +280,7 @@ function OrderAnswerInput({
       >
         Submit order
       </Button>
-    </div>
+    </AnswerInputPanel>
   );
 }
 
@@ -291,33 +317,33 @@ function MultiSelectAnswerInput({
     : selected.length === requiredCount;
 
   return (
-    <div className="flex w-full max-w-3xl flex-col gap-3">
+    <AnswerInputPanel size="lg">
       {!exactSet ? (
         <p className="text-center text-sm text-muted-foreground">
           Select exactly {requiredCount}
         </p>
       ) : null}
-      <div className="grid gap-2 sm:grid-cols-2">
+      <AnswerOptionGrid optionCount={question.options.length} className="w-full">
         {question.options.map((option, index) => {
           const isSelected = selected.includes(index);
+          const atMaxAndNotSelected =
+            !exactSet &&
+            !isSelected &&
+            selected.length >= requiredCount;
           return (
-            <button
+            <AnswerOption
               key={index}
-              type="button"
-              disabled={disabled}
+              index={index}
+              text={option}
+              variant="interactive"
+              highlighted={isSelected}
+              disabled={disabled || atMaxAndNotSelected}
+              fullHeight
               onClick={() => toggle(index)}
-              className={cn(
-                "rounded-xl border px-4 py-3 text-left text-base transition-colors",
-                isSelected
-                  ? "border-primary bg-primary/10 text-foreground"
-                  : "border-border bg-background hover:bg-muted/50",
-              )}
-            >
-              {option}
-            </button>
+            />
           );
         })}
-      </div>
+      </AnswerOptionGrid>
       <Button
         type="button"
         disabled={disabled || !canSubmit}
@@ -328,7 +354,7 @@ function MultiSelectAnswerInput({
       >
         Submit selection
       </Button>
-    </div>
+    </AnswerInputPanel>
   );
 }
 

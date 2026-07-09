@@ -1,5 +1,6 @@
 import { AnswerStatusFooter } from "@/components/game/AnswerOption";
 import { QuestionAnswerInput } from "@/components/game/QuestionAnswerInput";
+import { QuestionImageSlot } from "@/components/game/QuestionImageSlot";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useQuestionTimer } from "@/hooks/useQuestionTimer";
@@ -37,27 +38,9 @@ export function PlayerPlayScreen({
   );
 
   return (
-    <div className="flex min-h-screen w-full flex-col items-center justify-center gap-6 p-6">
-      <div className="flex w-full max-w-4xl flex-col items-center gap-6">
-        <div className="flex w-full max-w-2xl flex-wrap items-center justify-center gap-3">
-          <Badge variant="secondary" className="text-sm">
-            Squad: {formatDistance(totalDistance)}
-          </Badge>
-          <Badge variant="outline" className="text-sm">
-            You: {formatDistance(myDistance)}
-          </Badge>
-          {myStreak > 0 ? (
-            <Badge className="text-sm">
-              Streak x{myStreakMultiplier} on next correct
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="text-sm">
-              Next correct: 1 m
-            </Badge>
-          )}
-        </div>
-
-        <div className="flex w-full max-w-xs flex-col items-center">
+    <div className="flex min-h-dvh w-full flex-col p-4 md:p-6">
+      <header className="mx-auto w-full max-w-4xl shrink-0 border-b border-border/60 pb-4">
+        <div className="flex w-full flex-col items-center">
           <div className="font-mono text-5xl font-bold tabular-nums text-primary md:text-6xl">
             {Math.ceil(timeRemaining)}
           </div>
@@ -66,17 +49,23 @@ export function PlayerPlayScreen({
             className="mt-3 h-1.5 w-full"
           />
         </div>
+      </header>
 
+      <section className="mx-auto flex w-full max-w-4xl shrink-0 flex-col items-center pt-4">
         {currentQuestion ? (
-          <Badge variant="outline">
+          <Badge variant="outline" className="mb-3">
             {getQuestionTypeLabel(currentQuestion.questionType)}
           </Badge>
         ) : null}
 
-        <h1 className="w-full text-center text-3xl font-semibold leading-snug md:text-4xl">
+        <h1 className="w-full text-center text-2xl font-semibold leading-snug md:text-3xl">
           {currentQuestion?.text ?? "Loading question..."}
         </h1>
+      </section>
 
+      <QuestionImageSlot className="mx-auto min-h-0 w-full max-w-4xl flex-1" />
+
+      <footer className="mx-auto mt-auto w-full max-w-4xl shrink-0 flex flex-col gap-3 pt-4">
         {currentQuestion ? (
           <QuestionAnswerInput
             key={`${currentQuestion.text}-${currentQuestion.questionType}`}
@@ -95,7 +84,19 @@ export function PlayerPlayScreen({
               : null
           }
         />
-      </div>
+
+        <div className="flex w-full flex-wrap items-center justify-center gap-2 text-sm">
+          <Badge variant="secondary">
+            Squad: {formatDistance(totalDistance)}
+          </Badge>
+          <Badge variant="outline">You: {formatDistance(myDistance)}</Badge>
+          {myStreak > 0 ? (
+            <Badge>Streak x{myStreakMultiplier} on next correct</Badge>
+          ) : (
+            <Badge variant="outline">Next correct: 1 m</Badge>
+          )}
+        </div>
+      </footer>
     </div>
   );
 }

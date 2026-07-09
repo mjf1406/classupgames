@@ -88,7 +88,13 @@ export function AnswerOptionGrid({
   const columns = Math.min(Math.max(optionCount, 1), 4);
 
   return (
-    <div className={cn("grid gap-2", GRID_COLS[columns], className)}>
+    <div
+      className={cn(
+        "grid auto-rows-fr items-stretch gap-2",
+        GRID_COLS[columns],
+        className,
+      )}
+    >
       {children}
     </div>
   );
