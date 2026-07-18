@@ -78,7 +78,7 @@ function HostNavLinks({
 
   return (
     <>
-      <NavLink to="/" exact onNavigate={onNavigate} className={className}>
+      <NavLink to="/decks" onNavigate={onNavigate} className={className}>
         My decks
       </NavLink>
       {isHost ? (
@@ -153,11 +153,13 @@ function MobileNav({
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { isLoading, user } = db.useAuth();
+  const isHost = !isLoading && user && isGoogleUser(user);
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4 sm:px-6">
-        <Link to="/" className="flex items-center">
+        <Link to={isHost ? "/decks" : "/"} className="flex items-center">
           <img
             src="/brand/logo-horizontal.webp"
             alt="ClassUpGames"

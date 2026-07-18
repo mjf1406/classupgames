@@ -13,7 +13,7 @@ export function useCancelGame() {
       try {
         await cancelGame(gameId, playerIds);
         toast.success("Game cancelled.");
-        await navigate({ to: "/" });
+        await navigate({ to: "/decks" });
       } catch {
         toast.error("Could not cancel the game. Try again.");
       } finally {

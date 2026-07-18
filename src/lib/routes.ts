@@ -1,6 +1,6 @@
 export const joinSearchDefaults = { code: "" } as const;
 
-export const loginSearchDefaults = { redirect: "/" } as const;
+export const loginSearchDefaults = { redirect: "/decks" } as const;
 
 function getOrigin() {
     return typeof window !== "undefined" ? window.location.origin : "";

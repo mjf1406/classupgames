@@ -3,7 +3,8 @@ import { LoginPage } from "@/components/LoginPage";
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>) => ({
-    redirect: typeof search.redirect === "string" ? search.redirect : "/",
+    redirect:
+      typeof search.redirect === "string" ? search.redirect : "/decks",
   }),
   component: LoginRoute,
 });

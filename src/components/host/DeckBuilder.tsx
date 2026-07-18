@@ -699,7 +699,7 @@ export function DeckBuilder() {
           </CardHeader>
           <CardContent>
             <Button asChild variant="outline">
-              <Link to="/">Back to dashboard</Link>
+              <Link to="/decks">Back to dashboard</Link>
             </Button>
           </CardContent>
         </Card>
@@ -720,7 +720,7 @@ export function DeckBuilder() {
           </CardHeader>
           <CardContent>
             <Button asChild variant="outline">
-              <Link to="/">Back to dashboard</Link>
+              <Link to="/decks">Back to dashboard</Link>
             </Button>
           </CardContent>
         </Card>
@@ -762,7 +762,7 @@ export function DeckBuilder() {
             }}
           />
           <Button asChild variant="outline" size="sm">
-            <Link to="/">Back</Link>
+            <Link to="/decks">Back</Link>
           </Button>
         </div>
       </div>

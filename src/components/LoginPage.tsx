@@ -20,7 +20,7 @@ type LoginPageProps = {
   redirect?: string;
 };
 
-export function LoginPage({ redirect = "/" }: LoginPageProps) {
+export function LoginPage({ redirect = "/decks" }: LoginPageProps) {
   const navigate = useNavigate();
   const [nonce] = useState(() => crypto.randomUUID());
   const [error, setError] = useState<string | null>(null);

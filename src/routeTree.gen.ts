@@ -13,9 +13,10 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as JoinRouteImport } from './routes/join'
 import { Route as HostRouteImport } from './routes/_host'
 import { Route as GameRouteImport } from './routes/_game'
-import { Route as HostIndexRouteImport } from './routes/_host.index'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as HostHighScoresRouteImport } from './routes/_host.high-scores'
 import { Route as HostGamesRouteImport } from './routes/_host.games'
+import { Route as HostDecksRouteImport } from './routes/_host.decks'
 import { Route as HostLDeckIdRouteImport } from './routes/_host.l.$deckId'
 import { Route as HostDDeckIdRouteImport } from './routes/_host.d.$deckId'
 import { Route as GamePCodeRouteImport } from './routes/_game.p.$code'
@@ -41,10 +42,10 @@ const GameRoute = GameRouteImport.update({
   id: '/_game',
   getParentRoute: () => rootRouteImport,
 } as any)
-const HostIndexRoute = HostIndexRouteImport.update({
+const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => HostRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
 const HostHighScoresRoute = HostHighScoresRouteImport.update({
   id: '/high-scores',
@@ -54,6 +55,11 @@ const HostHighScoresRoute = HostHighScoresRouteImport.update({
 const HostGamesRoute = HostGamesRouteImport.update({
   id: '/games',
   path: '/games',
+  getParentRoute: () => HostRoute,
+} as any)
+const HostDecksRoute = HostDecksRouteImport.update({
+  id: '/decks',
+  path: '/decks',
   getParentRoute: () => HostRoute,
 } as any)
 const HostLDeckIdRoute = HostLDeckIdRouteImport.update({
@@ -88,9 +94,10 @@ const GameGCodePlayRoute = GameGCodePlayRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof HostIndexRoute
+  '/': typeof IndexRoute
   '/join': typeof JoinRoute
   '/login': typeof LoginRoute
+  '/decks': typeof HostDecksRoute
   '/games': typeof HostGamesRoute
   '/high-scores': typeof HostHighScoresRoute
   '/g/$code': typeof GameGCodeRouteWithChildren
@@ -101,9 +108,10 @@ export interface FileRoutesByFullPath {
   '/g/$code/': typeof GameGCodeIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof HostIndexRoute
+  '/': typeof IndexRoute
   '/join': typeof JoinRoute
   '/login': typeof LoginRoute
+  '/decks': typeof HostDecksRoute
   '/games': typeof HostGamesRoute
   '/high-scores': typeof HostHighScoresRoute
   '/p/$code': typeof GamePCodeRoute
@@ -114,13 +122,14 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
   '/_game': typeof GameRouteWithChildren
   '/_host': typeof HostRouteWithChildren
   '/join': typeof JoinRoute
   '/login': typeof LoginRoute
+  '/_host/decks': typeof HostDecksRoute
   '/_host/games': typeof HostGamesRoute
   '/_host/high-scores': typeof HostHighScoresRoute
-  '/_host/': typeof HostIndexRoute
   '/_game/g/$code': typeof GameGCodeRouteWithChildren
   '/_game/p/$code': typeof GamePCodeRoute
   '/_host/d/$deckId': typeof HostDDeckIdRoute
@@ -134,6 +143,7 @@ export interface FileRouteTypes {
     | '/'
     | '/join'
     | '/login'
+    | '/decks'
     | '/games'
     | '/high-scores'
     | '/g/$code'
@@ -147,6 +157,7 @@ export interface FileRouteTypes {
     | '/'
     | '/join'
     | '/login'
+    | '/decks'
     | '/games'
     | '/high-scores'
     | '/p/$code'
@@ -156,13 +167,14 @@ export interface FileRouteTypes {
     | '/g/$code'
   id:
     | '__root__'
+    | '/'
     | '/_game'
     | '/_host'
     | '/join'
     | '/login'
+    | '/_host/decks'
     | '/_host/games'
     | '/_host/high-scores'
-    | '/_host/'
     | '/_game/g/$code'
     | '/_game/p/$code'
     | '/_host/d/$deckId'
@@ -172,6 +184,7 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
   GameRoute: typeof GameRouteWithChildren
   HostRoute: typeof HostRouteWithChildren
   JoinRoute: typeof JoinRoute
@@ -208,12 +221,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GameRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_host/': {
-      id: '/_host/'
+    '/': {
+      id: '/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof HostIndexRouteImport
-      parentRoute: typeof HostRoute
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_host/high-scores': {
       id: '/_host/high-scores'
@@ -227,6 +240,13 @@ declare module '@tanstack/react-router' {
       path: '/games'
       fullPath: '/games'
       preLoaderRoute: typeof HostGamesRouteImport
+      parentRoute: typeof HostRoute
+    }
+    '/_host/decks': {
+      id: '/_host/decks'
+      path: '/decks'
+      fullPath: '/decks'
+      preLoaderRoute: typeof HostDecksRouteImport
       parentRoute: typeof HostRoute
     }
     '/_host/l/$deckId': {
@@ -301,17 +321,17 @@ const GameRouteChildren: GameRouteChildren = {
 const GameRouteWithChildren = GameRoute._addFileChildren(GameRouteChildren)
 
 interface HostRouteChildren {
+  HostDecksRoute: typeof HostDecksRoute
   HostGamesRoute: typeof HostGamesRoute
   HostHighScoresRoute: typeof HostHighScoresRoute
-  HostIndexRoute: typeof HostIndexRoute
   HostDDeckIdRoute: typeof HostDDeckIdRoute
   HostLDeckIdRoute: typeof HostLDeckIdRoute
 }
 
 const HostRouteChildren: HostRouteChildren = {
+  HostDecksRoute: HostDecksRoute,
   HostGamesRoute: HostGamesRoute,
   HostHighScoresRoute: HostHighScoresRoute,
-  HostIndexRoute: HostIndexRoute,
   HostDDeckIdRoute: HostDDeckIdRoute,
   HostLDeckIdRoute: HostLDeckIdRoute,
 }
@@ -319,6 +339,7 @@ const HostRouteChildren: HostRouteChildren = {
 const HostRouteWithChildren = HostRoute._addFileChildren(HostRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
   GameRoute: GameRouteWithChildren,
   HostRoute: HostRouteWithChildren,
   JoinRoute: JoinRoute,

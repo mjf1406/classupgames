@@ -138,7 +138,7 @@ export function LaunchDeckPage() {
           </CardHeader>
           <CardContent>
             <Button asChild variant="outline">
-              <Link to="/">Back to dashboard</Link>
+              <Link to="/decks">Back to dashboard</Link>
             </Button>
           </CardContent>
         </Card>
@@ -165,7 +165,7 @@ export function LaunchDeckPage() {
               </Button>
             ) : null}
             <Button asChild variant="outline">
-              <Link to="/">Back</Link>
+              <Link to="/decks">Back</Link>
             </Button>
           </CardContent>
         </Card>
@@ -187,7 +187,7 @@ export function LaunchDeckPage() {
           </p>
         </div>
         <Button asChild variant="outline" size="sm">
-          <Link to="/">Back</Link>
+          <Link to="/decks">Back</Link>
         </Button>
       </div>
 
